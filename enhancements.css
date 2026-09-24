@@ -12,4 +12,12 @@
 .source-group-heading{font-size:12px;font-weight:800;letter-spacing:.04em;color:#2a6d63;background:#f3f9f6;padding:9px 13px;border-radius:8px;margin:14px 0 8px}
 .source-group-heading:first-child{margin-top:0}
 .source-card p{overflow-wrap:anywhere}
+.danger-button{color:#a84e46!important;border-color:#e8c5c1!important}
+.danger-button:hover{background:#fff2f0!important;border-color:#cb7067!important}
+.zip-workbench{margin-top:18px}
+.zip-workbench label{display:block;color:#53686d;font-size:12px;font-weight:700;margin:15px 0 6px}
+.zip-workbench input{display:block;width:100%;padding:10px 12px;margin-top:6px}
+.zip-list{max-height:520px;overflow:auto}
+.zip-list .upload-row>div{min-width:0;overflow-wrap:anywhere}
+#upload-selection{min-height:30px}
 @media(max-width:740px){.smart-search{margin:0 0 16px;padding:13px}.smart-search>div:first-of-type{display:block}.smart-search input{width:100%;margin-bottom:8px}.smart-search button{width:100%}}
