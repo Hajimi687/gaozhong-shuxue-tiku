@@ -27,4 +27,5 @@
 .ai-review-result p{margin:5px 0;color:#657e79}
 .review-workbench>label{display:block;color:#53686d;font-size:12px;font-weight:700;margin:14px 0 6px}
 .review-workbench>label textarea{display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:12px;line-height:1.6}
+.upload-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 @media(max-width:740px){.smart-search{margin:0 0 16px;padding:13px}.smart-search>div:first-of-type{display:block}.smart-search input{width:100%;margin-bottom:8px}.smart-search button{width:100%}}
