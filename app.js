@@ -14,6 +14,8 @@ function escapeHtml(value = '') {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
+const stripTikz = value => String(value || '').replace(/\\begin\{tikzpicture\}(?:\[[^\]]*\])?[\s\S]*?\\end\{tikzpicture\}/g, '').trim();
+
 function renderMath(root) {
   if (typeof window.renderMathInElement !== 'function') return;
   for (const node of root.querySelectorAll('.card-stem, .latex-content, .similar-item strong')) {
@@ -50,6 +52,21 @@ function schoolOptions(region, current = '') {
   optionList('#filter-school', [...new Set(data.sources.filter(source => !region || canonicalRegion(source.region) === region)
     .map(source => source.school).filter(Boolean))].sort(), '全部学校');
   $('#filter-school').value = current;
+  updateSourceFilterVisibility();
+}
+
+function updateSourceFilterVisibility() {
+  const available = {
+    school: $('#filter-school').options.length > 1,
+    source: $('#filter-source').options.length > 1,
+    'school-tier': data.sources.some(source => source.category === '学校试卷' && canonicalRegion(source.region) === '上海')
+  };
+  for (const [kind, show] of Object.entries(available)) {
+    const select = $(`#filter-${kind}`);
+    select.hidden = !show;
+    $(`#filter-${kind}-label`).hidden = !show;
+    if (!show) select.value = '';
+  }
 }
 
 function sourceGroup(source) {
@@ -143,7 +160,7 @@ function search(page = 1) {
   $('#active-filter-summary').textContent = filterCount ? `已使用 ${filterCount} 类筛选` : '全部已发布题目';
   $('#question-list').innerHTML = visible.length ? visible.map(question => {
     const source = sourceById.get(question.sourceId) || {};
-    const stem = String(question.stemLatex || '').replace(/\s+/g, ' ').trim();
+    const stem = (question.tikzRenderFailed ? String(question.stemLatex || '') : stripTikz(question.stemLatex)).replace(/\s+/g, ' ').trim();
     const topicsText = question.topicIds.map(id => topicById.get(id)?.name).filter(Boolean).join('、');
     return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '个人录入', question.questionNumber].filter(Boolean).join(' · '))}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">${DIFFICULTY[question.difficulty - 1]}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
   }).join('') : `<div class="empty-state"><div class="empty-icon">∅</div><h2>${data.questions.length ? '没有找到符合条件的题目' : '题库暂时没有已发布题目'}</h2><p>${data.questions.length ? '试试放宽年份、难度或考点条件。' : '老师录入并校对题目后，这里会自动显示。'}</p></div>`;
@@ -161,7 +178,7 @@ function openDetail(id) {
   selectedQuestion = question;
   const source = sourceById.get(question.sourceId) || {};
   const tags = question.topicIds.map(topicId => topicById.get(topicId)?.name).filter(Boolean);
-  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span></div>${detailSection('题干 · LaTeX', question.stemLatex)}${question.assetUrl ? `<figure class="question-asset"><img src="${escapeHtml(question.assetUrl)}" alt="题目配图" loading="lazy"></figure>` : ''}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div>${detailSection('参考答案', question.answerLatex)}<div class="solution-grid">${detailSection('官方答案', question.officialAnswer, '暂未录入官方答案')}${detailSection('官方完整解析', question.officialSolution, '暂未录入官方解析')}</div>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 参考解答', question.aiSolution, '尚未生成或录入 AI 解答')}<div id="similar-results"></div>`;
+  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span></div>${detailSection('题干 · LaTeX', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex))}${question.assetUrl ? `<figure class="question-asset"><img src="${escapeHtml(question.assetUrl)}" alt="题目配图" loading="lazy"></figure>` : ''}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div>${detailSection('参考答案', question.answerLatex)}<div class="solution-grid">${detailSection('官方答案', question.officialAnswer, '暂未录入官方答案')}${detailSection('官方完整解析', question.officialSolution, '暂未录入官方解析')}</div>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 参考解答', question.aiSolution, '尚未生成或录入 AI 解答')}<div id="similar-results"></div>`;
   renderMath($('#detail-body'));
   if (!$('#detail-dialog').open) $('#detail-dialog').showModal();
 }
@@ -195,6 +212,7 @@ function init() {
   for (const [name, value] of Object.entries(values)) {
     if (name !== 'topicIds' && $('#filters').elements[name]) $('#filters').elements[name].value = value;
   }
+  updateSourceFilterVisibility();
   for (const input of document.querySelectorAll('#filter-topics input')) input.checked = checkedTopics.has(input.value);
   const groups = new Map();
   for (const source of data.sources) {

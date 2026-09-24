@@ -37,10 +37,10 @@
               <div class="filter-heading">题目来源</div>
               <label class="field-label" for="filter-category">来源类别</label><select id="filter-category" name="category"></select>
               <label class="field-label" for="filter-region">地区</label><select id="filter-region" name="region"></select>
-              <label class="field-label" for="filter-school-tier">上海学校分组</label><select id="filter-school-tier" name="schoolTier"></select>
-              <label class="field-label" for="filter-school">学校</label><select id="filter-school" name="school"></select>
+              <label class="field-label" id="filter-school-tier-label" for="filter-school-tier">上海学校分组</label><select id="filter-school-tier" name="schoolTier"></select>
+              <label class="field-label" id="filter-school-label" for="filter-school">学校</label><select id="filter-school" name="school"></select>
               <label class="field-label" for="filter-exam-type">考试类型</label><select id="filter-exam-type" name="examType"></select>
-              <label class="field-label" for="filter-source">具体试卷</label><select id="filter-source" name="sourceId"></select>
+              <label class="field-label" id="filter-source-label" for="filter-source">具体试卷</label><select id="filter-source" name="sourceId"></select>
               <div class="field-row"><label><span class="field-label">起始年份</span><input name="yearFrom" type="number" min="1900" max="2100" placeholder="不限"></label><label><span class="field-label">结束年份</span><input name="yearTo" type="number" min="1900" max="2100" placeholder="不限"></label></div>
               <div class="filter-heading">考点</div><div class="hint">支持多选；选中大类可查全部子考点。</div><input class="topic-search" type="search" data-topic-search="filter-topics" placeholder="搜索考点，如：离心率"><div id="filter-topics" class="topic-selector"></div>
               <div class="filter-heading">难度与题型</div>
