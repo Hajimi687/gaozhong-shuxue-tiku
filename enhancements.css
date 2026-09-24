@@ -20,4 +20,11 @@
 .zip-list{max-height:520px;overflow:auto}
 .zip-list .upload-row>div{min-width:0;overflow-wrap:anywhere}
 #upload-selection{min-height:30px}
+.review-actions{flex-wrap:wrap}
+.ai-review-result{border:1px solid #c9ded8;background:#f3faf7;border-radius:10px;padding:12px 15px;margin:12px 0;color:#315b56;font-size:12px}
+.ai-review-result strong{display:block;margin-bottom:7px}
+.ai-review-result ul{margin:5px 0 8px;padding-left:20px}
+.ai-review-result p{margin:5px 0;color:#657e79}
+.review-workbench>label{display:block;color:#53686d;font-size:12px;font-weight:700;margin:14px 0 6px}
+.review-workbench>label textarea{display:block;width:100%;margin-top:6px;padding:10px 12px;font-size:12px;line-height:1.6}
 @media(max-width:740px){.smart-search{margin:0 0 16px;padding:13px}.smart-search>div:first-of-type{display:block}.smart-search input{width:100%;margin-bottom:8px}.smart-search button{width:100%}}
