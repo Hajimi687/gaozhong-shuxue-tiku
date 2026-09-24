@@ -1,3 +1,5 @@
+import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
+
 const $ = selector => document.querySelector(selector);
 let data = { topics: [], sources: [], questions: [], options: {} };
 let sourceById = new Map();
@@ -44,6 +46,18 @@ function topicTree() {
   $('#filter-topics').innerHTML = branch('root');
 }
 
+function schoolOptions(region, current = '') {
+  optionList('#filter-school', [...new Set(data.sources.filter(source => !region || canonicalRegion(source.region) === region)
+    .map(source => source.school).filter(Boolean))].sort(), '全部学校');
+  $('#filter-school').value = current;
+}
+
+function sourceGroup(source) {
+  if (source.category === '学校试卷' && canonicalRegion(source.region) === '上海') return `上海 · ${source.schoolTier || '其他'}`;
+  if (source.category === '教辅习题') return '教辅习题';
+  return `${source.region || '其他地区'} · ${source.category}`;
+}
+
 function setPage(page) {
   for (const section of document.querySelectorAll('.page')) section.classList.toggle('active', section.id === `page-${page}`);
   for (const button of document.querySelectorAll('.nav-link')) button.classList.toggle('active', button.dataset.page === page);
@@ -68,47 +82,70 @@ function selectedTopics() {
 function filteredQuestions() {
   const values = Object.fromEntries(new FormData($('#filters')));
   const topics = selectedTopics();
-  const query = String(values.q || '').trim().toLowerCase();
+  const intent = parseSearchIntent(values.smart, data);
+  const effective = { ...intent.filters };
+  for (const [key, value] of Object.entries(values)) if (value) effective[key] = value;
+  const query = [effective.q, intent.remaining].filter(Boolean).join(' ').trim().toLowerCase();
+  const hasSmartTopic = id => {
+    const ancestors = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const topic of data.topics) if (ancestors.has(topic.parentId) && !ancestors.has(topic.id)) {
+        ancestors.add(topic.id); changed = true;
+      }
+    }
+    return ancestors;
+  };
+  const smartTopics = (intent.filters.topicIds || []).map(hasSmartTopic);
   const filtered = data.questions.filter(question => {
     const source = sourceById.get(question.sourceId) || {};
-    if (query && ![question.stemLatex, question.answerLatex, source.title].some(value => String(value || '').toLowerCase().includes(query))) return false;
-    if (values.sourceId && question.sourceId !== values.sourceId) return false;
-    if (values.category && source.category !== values.category) return false;
-    if (values.region && source.region !== values.region) return false;
-    if (values.school && source.school !== values.school) return false;
-    if (values.examType && source.examType !== values.examType) return false;
-    if (values.questionType && question.questionType !== values.questionType) return false;
-    if (values.yearFrom && Number(source.examYear || 0) < Number(values.yearFrom)) return false;
-    if (values.yearTo && Number(source.examYear || 0) > Number(values.yearTo)) return false;
-    if (values.difficultyMin && question.difficulty < Number(values.difficultyMin)) return false;
-    if (values.difficultyMax && question.difficulty > Number(values.difficultyMax)) return false;
+    const year = Number(question.questionYear || source.examYear || 0);
+    if (query && ![question.stemLatex, question.answerLatex, question.paperTitle, source.title,
+      ...question.topicIds.map(id => topicById.get(id)?.name)].some(value => String(value || '').toLowerCase().includes(query))) return false;
+    if (effective.sourceId && question.sourceId !== effective.sourceId) return false;
+    if (effective.category && source.category !== effective.category) return false;
+    if (effective.region && canonicalRegion(source.region) !== canonicalRegion(effective.region)) return false;
+    if (effective.school && source.school !== effective.school) return false;
+    if (effective.schoolTier && source.schoolTier !== effective.schoolTier) return false;
+    if (effective.examType && canonicalExamType(source.examType) !== canonicalExamType(effective.examType)) return false;
+    if (effective.questionType && question.questionType !== effective.questionType) return false;
+    if (effective.questionNumber && !String(question.questionNumber || '').includes(effective.questionNumber.replace(/\D/g, ''))) return false;
+    if (effective.year && year !== Number(effective.year)) return false;
+    if (effective.yearFrom && year < Number(effective.yearFrom)) return false;
+    if (effective.yearTo && year > Number(effective.yearTo)) return false;
+    if (effective.difficulty && question.difficulty !== Number(effective.difficulty)) return false;
+    if (effective.difficultyMin && question.difficulty < Number(effective.difficultyMin)) return false;
+    if (effective.difficultyMax && question.difficulty > Number(effective.difficultyMax)) return false;
     if (topics.size && !question.topicIds.some(id => topics.has(id))) return false;
+    if (smartTopics.length && !smartTopics.every(set => question.topicIds.some(id => set.has(id)))) return false;
     return true;
   });
   const sort = values.sort || 'newest';
   filtered.sort((a, b) => {
     if (sort === 'easy') return a.difficulty - b.difficulty || b.updatedAt.localeCompare(a.updatedAt);
     if (sort === 'hard') return b.difficulty - a.difficulty || b.updatedAt.localeCompare(a.updatedAt);
-    if (sort === 'year') return Number(sourceById.get(b.sourceId)?.examYear || 0) - Number(sourceById.get(a.sourceId)?.examYear || 0) || b.updatedAt.localeCompare(a.updatedAt);
+    if (sort === 'year') return Number(b.questionYear || sourceById.get(b.sourceId)?.examYear || 0) - Number(a.questionYear || sourceById.get(a.sourceId)?.examYear || 0) || b.updatedAt.localeCompare(a.updatedAt);
     return b.updatedAt.localeCompare(a.updatedAt);
   });
-  return { items: filtered, values, topics };
+  return { items: filtered, values, topics, recognized: intent.recognized };
 }
 
 function search(page = 1) {
-  const { items, values, topics } = filteredQuestions();
+  const { items, values, topics, recognized } = filteredQuestions();
   const pageSize = 20;
   const maxPage = Math.max(1, Math.ceil(items.length / pageSize));
   currentPage = Math.min(page, maxPage);
   const visible = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const filterCount = Object.entries(values).filter(([key, value]) => key !== 'sort' && key !== 'topicIds' && String(value).trim()).length + Number(topics.size > 0);
   $('#result-count').textContent = `${items.length} 道题`;
+  $('#smart-recognized').innerHTML = recognized.map(item => `<span>${escapeHtml(item.label)}</span>`).join('');
   $('#active-filter-summary').textContent = filterCount ? `已使用 ${filterCount} 类筛选` : '全部已发布题目';
   $('#question-list').innerHTML = visible.length ? visible.map(question => {
     const source = sourceById.get(question.sourceId) || {};
     const stem = String(question.stemLatex || '').replace(/\s+/g, ' ').trim();
     const topicsText = question.topicIds.map(id => topicById.get(id)?.name).filter(Boolean).join('、');
-    return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${escapeHtml(source.title || '个人录入')}${question.questionNumber ? ` · ${escapeHtml(question.questionNumber)}` : ''}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">${DIFFICULTY[question.difficulty - 1]}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
+    return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '个人录入', question.questionNumber].filter(Boolean).join(' · '))}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">${DIFFICULTY[question.difficulty - 1]}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
   }).join('') : `<div class="empty-state"><div class="empty-icon">∅</div><h2>${data.questions.length ? '没有找到符合条件的题目' : '题库暂时没有已发布题目'}</h2><p>${data.questions.length ? '试试放宽年份、难度或考点条件。' : '老师录入并校对题目后，这里会自动显示。'}</p></div>`;
   $('#pagination').innerHTML = maxPage > 1 ? `<button type="button" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>上一页</button><span>第 ${currentPage} / ${maxPage} 页</span><button type="button" data-page="${currentPage + 1}" ${currentPage === maxPage ? 'disabled' : ''}>下一页</button>` : '';
   renderMath($('#question-list'));
@@ -124,7 +161,7 @@ function openDetail(id) {
   selectedQuestion = question;
   const source = sourceById.get(question.sourceId) || {};
   const tags = question.topicIds.map(topicId => topicById.get(topicId)?.name).filter(Boolean);
-  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml(source.title || '未关联试卷')}${question.questionNumber ? ` · ${escapeHtml(question.questionNumber)}` : ''}</span><span>难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span></div>${detailSection('题干 · LaTeX', question.stemLatex)}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div>${detailSection('参考答案', question.answerLatex)}<div class="solution-grid">${detailSection('官方答案', question.officialAnswer, '暂未录入官方答案')}${detailSection('官方完整解析', question.officialSolution, '暂未录入官方解析')}</div>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 参考解答', question.aiSolution, '尚未生成或录入 AI 解答')}<div id="similar-results"></div>`;
+  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span></div>${detailSection('题干 · LaTeX', question.stemLatex)}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div>${detailSection('参考答案', question.answerLatex)}<div class="solution-grid">${detailSection('官方答案', question.officialAnswer, '暂未录入官方答案')}${detailSection('官方完整解析', question.officialSolution, '暂未录入官方解析')}</div>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 参考解答', question.aiSolution, '尚未生成或录入 AI 解答')}<div id="similar-results"></div>`;
   renderMath($('#detail-body'));
   if (!$('#detail-dialog').open) $('#detail-dialog').showModal();
 }
@@ -147,8 +184,9 @@ function init() {
   $('#sidebar-source-count').textContent = data.sources.length;
   $('#source-count').textContent = `${data.sources.length} 份`;
   optionList('#filter-category', data.options.sourceCategories || [], '全部来源');
-  optionList('#filter-region', [...new Set(data.sources.map(s => s.region).filter(Boolean))].sort(), '全部地区');
-  optionList('#filter-school', [...new Set(data.sources.map(s => s.school).filter(Boolean))].sort(), '全部学校');
+  optionList('#filter-region', data.options.provinces || PROVINCE_NAMES, '全部地区');
+  optionList('#filter-school-tier', data.options.schoolTiers || ['四校', '八大', '其他'], '全部分组');
+  schoolOptions(values.region, values.school);
   optionList('#filter-exam-type', data.options.examTypes || [], '全部类型');
   optionList('#filter-source', data.sources, '全部试卷', source => source.id, source => source.title);
   optionList('#filter-question-type', data.options.questionTypes || [], '全部题型');
@@ -158,7 +196,13 @@ function init() {
     if (name !== 'topicIds' && $('#filters').elements[name]) $('#filters').elements[name].value = value;
   }
   for (const input of document.querySelectorAll('#filter-topics input')) input.checked = checkedTopics.has(input.value);
-  $('#source-list').innerHTML = data.sources.length ? data.sources.map(source => `<div class="source-card"><div class="source-card-icon">▤</div><div><strong>${escapeHtml(source.title)}</strong><p>${escapeHtml([source.region, source.school, source.examType, source.examYear, source.paper].filter(Boolean).join(' · ') || '尚未补充来源信息')}</p></div><span class="source-chip">${escapeHtml(source.category)}</span></div>`).join('') : '<div class="empty-state compact"><div class="empty-icon">▤</div><h2>暂无已发布试卷</h2><p>老师发布题目后，对应试卷会显示在这里。</p></div>';
+  const groups = new Map();
+  for (const source of data.sources) {
+    const group = sourceGroup(source);
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(source);
+  }
+  $('#source-list').innerHTML = data.sources.length ? [...groups].map(([group, items]) => `<div class="source-group-heading">${escapeHtml(group)} · ${items.length}</div>${items.map(source => `<div class="source-card"><div class="source-card-icon">▤</div><div><strong>${escapeHtml(source.title)}</strong><p>${escapeHtml([source.region, source.school, source.examType, source.examYear, source.paper].filter(Boolean).join(' · ') || '尚未补充来源信息')}</p></div><span class="source-chip">${escapeHtml(source.category)}</span></div>`).join('')}`).join('') : '<div class="empty-state compact"><div class="empty-icon">▤</div><h2>暂无已发布来源</h2><p>老师发布题目后，对应的试卷或教辅会显示在这里。</p></div>';
   search(currentPage);
   if (selectedQuestion && $('#detail-dialog').open) {
     const selectedId = selectedQuestion.id;
@@ -187,9 +231,18 @@ async function loadSnapshot() {
 document.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => setPage(button.dataset.page)));
 $('#filters').addEventListener('submit', event => { event.preventDefault(); search(); });
 $('#filters').addEventListener('change', () => search());
+$('#filter-region').addEventListener('change', () => schoolOptions($('#filter-region').value));
 $('#reset-filters').addEventListener('click', () => { $('#filters').reset(); document.querySelectorAll('#filter-topics input').forEach(input => input.checked = false); search(); });
 let searchDelay;
-$('#filter-query').addEventListener('input', () => { clearTimeout(searchDelay); searchDelay = setTimeout(() => search(), 250); });
+for (const selector of ['#filter-query', '#filter-smart']) $(selector).addEventListener('input', () => {
+  clearTimeout(searchDelay); searchDelay = setTimeout(() => search(), 250);
+});
+document.querySelectorAll('[data-topic-search]').forEach(input => input.addEventListener('input', () => {
+  const needle = input.value.trim().toLowerCase();
+  for (const label of document.getElementById(input.dataset.topicSearch).querySelectorAll('.topic-option')) {
+    label.hidden = !!needle && !label.textContent.toLowerCase().includes(needle) && !label.querySelector('input:checked');
+  }
+}));
 $('#question-list').addEventListener('click', event => { const button = event.target.closest('[data-question-id]'); if (button) openDetail(button.dataset.questionId); });
 $('#pagination').addEventListener('click', event => { const button = event.target.closest('[data-page]'); if (button) search(Number(button.dataset.page)); });
 $('#close-detail').addEventListener('click', () => $('#detail-dialog').close());
