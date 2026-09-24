@@ -1,0 +1,6 @@
+.page-heading{min-height:64px}
+.share-note{font-size:11px;color:#7b9091;margin:14px 0 0}
+.empty-state{padding:66px 20px}
+.source-card{gap:13px}
+.result-toolbar{min-height:35px}
+@media(max-width:740px){.sidebar{min-height:100vh}.page-heading{min-height:0}.search-layout{display:block}.filter-panel{padding:16px}.result-toolbar{align-items:start}.result-toolbar strong{display:block;margin:0 0 4px}.result-toolbar span{display:block}}

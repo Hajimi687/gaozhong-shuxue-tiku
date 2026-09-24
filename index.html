@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173d54">
+  <title>高中数学题库 · 分享版</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="share.css">
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <script defer src="vendor/katex/katex.min.js"></script>
+  <script defer src="vendor/katex/contrib/auto-render.min.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">∑</div><div><strong>题库</strong><small>高中数学 · 分享版</small></div></div>
+      <div class="sidebar-label">浏览导航</div>
+      <nav class="nav" aria-label="页面导航">
+        <button class="nav-link active" data-page="questions" type="button"><span>⌕</span>题目检索</button>
+        <button class="nav-link" data-page="sources" type="button"><span>▤</span>试卷来源</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="sidebar-mini-title">已发布内容</div><div class="sidebar-stats"><span><b id="sidebar-question-count">0</b> 道题</span><span><b id="sidebar-source-count">0</b> 份试卷</span></div><p>上海优先，逐题整理全国数学试卷。</p></div>
+    </aside>
+    <div class="main-area">
+      <header class="topbar"><div class="topbar-breadcrumb">高中数学题库 <span>/</span> <strong id="page-name">题目检索</strong></div><div class="topbar-status"><span class="status-dot"></span>只读分享版</div></header>
+      <main>
+        <section id="page-questions" class="page active">
+          <div class="page-heading"><div><div class="eyebrow">QUESTION LIBRARY</div><h1>找到下一道好题</h1><p>按来源、考点与难度组合筛选，或输入题干关键词。</p></div></div>
+          <div class="search-layout">
+            <form id="filters" class="filter-panel">
+              <div class="panel-heading"><h2>筛选条件</h2><button type="button" class="text-button" id="reset-filters">清空</button></div>
+              <label class="field-label" for="filter-query">题干关键词 / LaTeX</label><input id="filter-query" name="q" type="search" placeholder="例如：导数 单调性" autocomplete="off">
+              <div class="filter-heading">题目来源</div>
+              <label class="field-label" for="filter-category">来源类别</label><select id="filter-category" name="category"></select>
+              <label class="field-label" for="filter-region">地区</label><select id="filter-region" name="region"></select>
+              <label class="field-label" for="filter-school">学校</label><select id="filter-school" name="school"></select>
+              <label class="field-label" for="filter-exam-type">考试类型</label><select id="filter-exam-type" name="examType"></select>
+              <label class="field-label" for="filter-source">具体试卷</label><select id="filter-source" name="sourceId"></select>
+              <div class="field-row"><label><span class="field-label">起始年份</span><input name="yearFrom" type="number" min="1900" max="2100" placeholder="不限"></label><label><span class="field-label">结束年份</span><input name="yearTo" type="number" min="1900" max="2100" placeholder="不限"></label></div>
+              <div class="filter-heading">考点</div><div class="hint">同组多选；不同条件同时生效。</div><div id="filter-topics" class="topic-selector"></div>
+              <div class="filter-heading">难度与题型</div>
+              <div class="field-row"><label><span class="field-label">最低难度</span><select id="filter-difficulty-min" name="difficultyMin"></select></label><label><span class="field-label">最高难度</span><select id="filter-difficulty-max" name="difficultyMax"></select></label></div>
+              <label class="field-label" for="filter-question-type">题型</label><select id="filter-question-type" name="questionType"></select>
+              <button type="submit" class="filter-submit">查看符合条件的题目 →</button>
+            </form>
+            <div class="result-area">
+              <div class="result-toolbar"><div><strong id="result-count">0 道题</strong><span id="active-filter-summary">全部题目</span></div><label class="sort-wrap">排序 <select id="filter-sort" form="filters" name="sort"><option value="newest">最近更新</option><option value="year">考试年份</option><option value="easy">难度从易到难</option><option value="hard">难度从难到易</option></select></label></div>
+              <div id="question-list" class="question-list"></div><div id="pagination" class="pagination"></div>
+            </div>
+          </div>
+        </section>
+        <section id="page-sources" class="page">
+          <div class="page-heading"><div><div class="eyebrow">SOURCE CATALOG</div><h1>试卷来源</h1><p>查看已发布题目对应的试卷、学校、地区和年份。</p></div></div>
+          <div class="section-card"><div class="section-card-heading"><h2>已发布的试卷</h2><span id="source-count">0 份</span></div><div id="source-list" class="source-list"></div></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <dialog id="detail-dialog" class="detail-dialog"><div class="dialog-head"><div><div class="eyebrow">QUESTION DETAIL</div><h2>题目详情</h2></div><button type="button" class="icon-button" id="close-detail" aria-label="关闭">×</button></div><div id="detail-body" class="dialog-body"></div><div class="dialog-footer"><button type="button" class="secondary-button" id="similar-button">查找相似题</button></div></dialog>
+</body>
+</html>
