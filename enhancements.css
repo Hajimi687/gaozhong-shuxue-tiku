@@ -37,6 +37,15 @@
 .import-candidate-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .import-candidate-heading strong{font-size:15px;color:#213e43}
 .import-stem{font-size:14px;line-height:1.8;margin:15px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.latex-content{font-family:"Microsoft YaHei","PingFang SC",sans-serif;font-size:15px;line-height:1.95;white-space:pre-wrap;overflow-wrap:anywhere}
+.latex-content .katex-display{max-width:100%;overflow-x:auto;overflow-y:hidden;padding:5px 0;text-align:left}
+.detail-section>.latex-content{max-width:82ch}
+.import-stem{font-size:15px;line-height:1.95;max-width:82ch}
+.official-solution{border:1px solid #dbe7e2;background:#f9fcfb;border-radius:12px;padding:18px 20px;margin:14px 0}
+.official-solution h3{font-size:15px;color:#244e4b;margin:0 0 15px}
+.solution-part+.solution-part{border-top:1px solid #e1e9e6;margin-top:15px;padding-top:15px}
+.solution-part>b{display:block;font-size:12px;color:#55736d;margin-bottom:6px}
+.solution-part .latex-content{font-size:14px;overflow-x:auto}
 .import-figure{margin:12px 0;padding:12px;border:1px solid #dce8e5;border-radius:10px;background:#fff}.import-figure img{max-width:100%;height:auto;display:block}.import-figure figcaption{font-size:12px;color:#667d80;margin-top:6px}
 .import-tags{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
 .import-tags span{padding:4px 9px;border-radius:30px;background:#eef6f3;color:#35675e;font-size:11px}
