@@ -30,6 +30,7 @@
         <section id="page-questions" class="page active">
           <div class="page-heading"><div><div class="eyebrow">QUESTION LIBRARY</div><h1>找到下一道好题</h1><p>按来源、考点与难度组合筛选，或输入题干关键词。</p></div></div>
           <div class="smart-search"><label for="filter-smart">总搜索 · 自动识别分类</label><div><input id="filter-smart" name="smart" form="filters" type="search" placeholder="例如：2025 江苏 全国卷 圆锥曲线 难度4" autocomplete="off"><button type="submit" form="filters" class="primary-button">智能搜索</button></div><p>直接输入年份、地区、学校、考试类型、考点或题号。</p><div id="smart-recognized" class="smart-recognized"></div></div>
+          <details class="similar-search section-card"><summary>粘贴一道题，查找相近题目</summary><p class="muted">按题干和考点相似度排序。</p><textarea id="similar-query" rows="3" placeholder="把完整题干粘贴在这里"></textarea><button type="button" class="secondary-button" id="similar-search-button">查找相似题</button><div id="similar-search-results" aria-live="polite"></div></details>
           <div class="search-layout">
             <form id="filters" class="filter-panel">
               <div class="panel-heading"><h2>筛选条件</h2><button type="button" class="text-button" id="reset-filters">清空</button></div>

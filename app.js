@@ -1,4 +1,5 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
+import { rankSimilar } from './similarity.js';
 
 const $ = selector => document.querySelector(selector);
 let data = { topics: [], sources: [], questions: [], options: {} };
@@ -185,12 +186,10 @@ function openDetail(id) {
 
 function showSimilar() {
   if (!selectedQuestion) return;
-  const baseTopics = new Set(selectedQuestion.topicIds);
-  const matches = data.questions.filter(question => question.id !== selectedQuestion.id).map(question => {
-    const shared = question.topicIds.filter(id => baseTopics.has(id)).length;
-    return { question, shared, score: shared * 10 - Math.abs(question.difficulty - selectedQuestion.difficulty) };
-  }).filter(item => item.shared > 0).sort((a, b) => b.score - a.score).slice(0, 8);
-  $('#similar-results').innerHTML = `<section class="detail-section"><h3>相似题 · 考点与难度</h3>${matches.length ? matches.map(({ question, shared }) => `<button type="button" class="similar-item" data-question-id="${escapeHtml(question.id)}"><strong>${escapeHtml(String(question.stemLatex).slice(0, 120))}</strong><span>${escapeHtml(sourceById.get(question.sourceId)?.title || '个人录入')} · 共有 ${shared} 个考点</span></button>`).join('') : '<p class="muted">暂无共享考点的其他题目。</p>'}</section>`;
+  const matches = rankSimilar(selectedQuestion.stemLatex, data.questions,
+    { topicIds: selectedQuestion.topicIds, difficulty: selectedQuestion.difficulty,
+      questionType: selectedQuestion.questionType, excludeId: selectedQuestion.id });
+  $('#similar-results').innerHTML = `<section class="detail-section"><h3>相似题 · 题干与考点</h3>${matches.length ? matches.map(question => `<button type="button" class="similar-item" data-question-id="${escapeHtml(question.id)}"><strong>${escapeHtml(String(question.stemLatex).slice(0, 120))}</strong><span>${escapeHtml(sourceById.get(question.sourceId)?.title || '个人录入')} · ${escapeHtml(question.reason)}</span></button>`).join('') : '<p class="muted">题库里暂时没有足够相近的题目。</p>'}</section>`;
   renderMath($('#similar-results'));
 }
 
@@ -265,6 +264,19 @@ $('#question-list').addEventListener('click', event => { const button = event.ta
 $('#pagination').addEventListener('click', event => { const button = event.target.closest('[data-page]'); if (button) search(Number(button.dataset.page)); });
 $('#close-detail').addEventListener('click', () => $('#detail-dialog').close());
 $('#similar-button').addEventListener('click', showSimilar);
+$('#similar-search-button').addEventListener('click', () => {
+  const root = $('#similar-search-results');
+  const query = $('#similar-query').value.trim();
+  if (query.length < 5) { root.textContent = '请粘贴至少 5 个字的题干。'; return; }
+  const topicIds = data.topics.filter(topic => topic.name.length >= 2 && query.includes(topic.name)).map(topic => topic.id);
+  const matches = rankSimilar(query, data.questions, { topicIds, limit: 20 });
+  root.innerHTML = matches.length ? matches.map(question => `<button type="button" class="similar-item" data-question-id="${escapeHtml(question.id)}"><strong>${escapeHtml(String(question.stemLatex).slice(0, 150))}</strong><span>${escapeHtml(sourceById.get(question.sourceId)?.title || '个人录入')} · ${escapeHtml(question.reason)}</span></button>`).join('') : '<p class="muted">题库里暂时没有足够相近的题目。</p>';
+  renderMath(root);
+});
+$('#similar-search-results').addEventListener('click', event => {
+  const button = event.target.closest('[data-question-id]');
+  if (button) openDetail(button.dataset.questionId);
+});
 $('#detail-body').addEventListener('click', event => { const button = event.target.closest('[data-question-id]'); if (button) { $('#detail-dialog').close(); openDetail(button.dataset.questionId); } });
 loadSnapshot().catch(error => {
   $('#question-list').innerHTML = `<div class="empty-state"><h2>暂时无法加载题库</h2><p>${escapeHtml(error.message)}</p></div>`;
