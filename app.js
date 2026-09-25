@@ -199,7 +199,10 @@ function search(page = 1) {
 }
 
 function detailSection(title, value, empty = '尚未填写', question = false, choice = false, solution = false) {
-  return `<section class="detail-section"><h3>${title}</h3><div class="latex-content">${value ? displayMathText(value, question, choice, solution) : `<span class="muted">${empty}</span>`}</div></section>`;
+  const text = title === 'AI 详细解析' ? stripTikz(value) : value;
+  const figures = title === 'AI 详细解析' ? (selectedQuestion?.solutionTikzUrls || []).map(url =>
+    `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="参考作图" loading="lazy"></figure>`).join('') : '';
+  return `<section class="detail-section"><h3>${title}</h3><div class="latex-content">${text ? displayMathText(text, question, choice, solution) : `<span class="muted">${empty}</span>`}</div>${figures}</section>`;
 }
 
 function openDetail(id) {
