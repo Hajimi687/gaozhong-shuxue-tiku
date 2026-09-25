@@ -75,3 +75,7 @@
 .duplicate-pair>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .duplicate-pair .similar-item{height:100%;margin:0;overflow-wrap:anywhere}
 @media(max-width:700px){.duplicate-pair>div{grid-template-columns:1fr}}
+.history-version{border-top:1px solid #e0e9e8;padding:13px 0}
+.history-version>div{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.history-version span{color:#74888e;font-size:12px}
+.history-version p{color:#4d646c;line-height:1.6;overflow-wrap:anywhere}
