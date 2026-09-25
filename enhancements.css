@@ -79,3 +79,5 @@
 .history-version>div{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .history-version span{color:#74888e;font-size:12px}
 .history-version p{color:#4d646c;line-height:1.6;overflow-wrap:anywhere}
+.detail-section .solution-prose,.official-solution .solution-part .latex-content{line-height:1.52;white-space:pre-line}
+.detail-section .solution-prose .katex-display,.official-solution .solution-part .katex-display{margin:.28em 0;padding:0;overflow-x:auto;overflow-y:hidden;text-align:left}

@@ -41,7 +41,7 @@ function displayMathText(value, question = false, choice = false, solution = fal
     `$\\displaystyle ${formula.trim().replace(/^\\displaystyle\s*/, '')}$`)
     .replace(/\\\(([^\r\n]+?)\\\)/g, (_, formula) =>
       `\\(\\displaystyle ${formula.trim().replace(/^\\displaystyle\s*/, '')}\\)`);
-  return escapeHtml(text);
+  return escapeHtml(solution ? text.replace(/\n{2,}/g, '\n').trim() : text);
 }
 
 const stripTikz = value => String(value || '').replace(/\\begin\{tikzpicture\}(?:\[[^\]]*\])?[\s\S]*?\\end\{tikzpicture\}/g, '').trim();
@@ -202,7 +202,11 @@ function detailSection(title, value, empty = '尚未填写', question = false, c
   const text = title === 'AI 详细解析' ? stripTikz(value) : value;
   const figures = title === 'AI 详细解析' ? (selectedQuestion?.solutionTikzUrls || []).map(url =>
     `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="参考作图" loading="lazy"></figure>`).join('') : '';
-  return `<section class="detail-section"><h3>${title}</h3><div class="latex-content">${text ? displayMathText(text, question, choice, solution) : `<span class="muted">${empty}</span>`}</div>${figures}</section>`;
+  return `<section class="detail-section"><h3>${title}</h3><div class="latex-content${solution ? ' solution-prose' : ''}">${text ? (solution ? displaySolutionText(text) : displayMathText(text, question, choice)) : `<span class="muted">${empty}</span>`}</div>${figures}</section>`;
+}
+
+function displaySolutionText(value) {
+  return displayMathText(value, false, false, true).replace(/\n{2,}/g, '\n').trim();
 }
 
 function openDetail(id) {
