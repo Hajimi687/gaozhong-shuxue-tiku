@@ -15,6 +15,31 @@ function escapeHtml(value = '') {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
+function displayMathText(value, question = false, choice = false, solution = false) {
+  let text = String(value ?? '').replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
+    '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
+    '（': '(', '）': ')', '【': '[', '】': ']', '、': ',',
+    '“': '"', '”': '"', '‘': "'", '’': "'"
+  })[mark]);
+  text = text.replace(/([,;:!?])(?=[\p{L}\p{N}$])/gu, '$1 ')
+    .replace(/\.(?=[\p{L}$])/gu, '. ')
+    .replace(/\)(?=[\u3400-\u9fff])/g, ') ');
+  if (question) text = text.replace(/([.;!?])\s*(?=\([1-9]\d*\)\s*[\u3400-\u9fff])/g, '$1\n\n');
+  if (choice) {
+    text = text.replace(/\\quad\s*(?=\([A-D]\))/g, '');
+    const labels = new Set([...text.matchAll(/\(([A-D])\)/g)].map(match => match[1]));
+    if (['A', 'B', 'C', 'D'].every(label => labels.has(label)))
+      text = text.replace(/\s*(\([A-D]\))\s*/g, (match, label) => `${label === '(A)' ? '\n\n' : '\n'}${label} `).trim();
+  }
+  if (solution) text = text.replace(/([.;])\s*(?=(?:由|又|故|因此|于是|综上|解得|代入|设|所以|首先|最后|再|检验))/g, '$1\n\n')
+    .replace(/(?<!\$)\$([^$\n]{90,})\$(?!\$)/g, (match, formula) => `\n$$${formula}$$\n`);
+  if (!question && !/\$|\\\(|\\\[|[\u3400-\u9fff]/.test(text) &&
+    /\\(?:frac|dfrac|tfrac|sqrt|left|right|sum|prod|int|lim|cdot|times|vec|overrightarrow|pi|theta|alpha|beta|infty|pm|leq|geq|neq|perp|parallel|begin)\b/.test(text)) {
+    text = `$${text}$`;
+  }
+  return escapeHtml(text);
+}
+
 const stripTikz = value => String(value || '').replace(/\\begin\{tikzpicture\}(?:\[[^\]]*\])?[\s\S]*?\\end\{tikzpicture\}/g, '').trim();
 
 function renderMath(root) {
@@ -169,8 +194,8 @@ function search(page = 1) {
   renderMath($('#question-list'));
 }
 
-function detailSection(title, value, empty = '尚未填写') {
-  return `<section class="detail-section"><h3>${title}</h3><div class="latex-content">${value ? escapeHtml(value) : `<span class="muted">${empty}</span>`}</div></section>`;
+function detailSection(title, value, empty = '尚未填写', question = false, choice = false, solution = false) {
+  return `<section class="detail-section"><h3>${title}</h3><div class="latex-content">${value ? displayMathText(value, question, choice, solution) : `<span class="muted">${empty}</span>`}</div></section>`;
 }
 
 function openDetail(id) {
@@ -179,7 +204,7 @@ function openDetail(id) {
   selectedQuestion = question;
   const source = sourceById.get(question.sourceId) || {};
   const tags = question.topicIds.map(topicId => topicById.get(topicId)?.name).filter(Boolean);
-  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span></div>${detailSection('题干 · LaTeX', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex))}${question.assetUrl ? `<figure class="question-asset"><img src="${escapeHtml(question.assetUrl)}" alt="题目配图" loading="lazy"></figure>` : ''}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div>${detailSection('参考答案', question.answerLatex)}<div class="solution-grid">${detailSection('官方答案', question.officialAnswer, '暂未录入官方答案')}${detailSection('官方完整解析', question.officialSolution, '暂未录入官方解析')}</div>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 参考解答', question.aiSolution, '尚未生成或录入 AI 解答')}<div id="similar-results"></div>`;
+  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span></div>${detailSection('题干', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex), '尚未填写', true, question.questionType === '选择题')}${question.assetUrl ? `<figure class="question-asset"><img src="${escapeHtml(question.assetUrl)}" alt="题目配图" loading="lazy"></figure>` : ''}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div><section class="detail-section official-solution"><h3>参考答案与官方解析</h3><div class="solution-part"><b>参考答案</b><div class="latex-content">${question.answerLatex || question.officialAnswer ? displayMathText(question.officialAnswer || question.answerLatex) : '<span class="muted">暂未录入</span>'}</div></div><div class="solution-part"><b>官方解析</b><div class="latex-content">${question.officialSolution ? displayMathText(question.officialSolution, false, false, true) : '<span class="muted">原件未提供官方解析</span>'}</div></div></section>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 详细解析', question.aiSolution, '尚未生成或录入 AI 解答', false, false, true)}<div id="similar-results"></div>`;
   renderMath($('#detail-body'));
   if (!$('#detail-dialog').open) $('#detail-dialog').showModal();
 }
