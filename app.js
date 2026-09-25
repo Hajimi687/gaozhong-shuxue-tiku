@@ -37,6 +37,10 @@ function displayMathText(value, question = false, choice = false, solution = fal
     /\\(?:frac|dfrac|tfrac|sqrt|left|right|sum|prod|int|lim|cdot|times|vec|overrightarrow|pi|theta|alpha|beta|infty|pm|leq|geq|neq|perp|parallel|begin)\b/.test(text)) {
     text = `$${text}$`;
   }
+  text = text.replace(/(?<!\$)\$([^$\r\n]+)\$(?!\$)/g, (_, formula) =>
+    `$\\displaystyle ${formula.trim().replace(/^\\displaystyle\s*/, '')}$`)
+    .replace(/\\\(([^\r\n]+?)\\\)/g, (_, formula) =>
+      `\\(\\displaystyle ${formula.trim().replace(/^\\displaystyle\s*/, '')}\\)`);
   return escapeHtml(text);
 }
 
