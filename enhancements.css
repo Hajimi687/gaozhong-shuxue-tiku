@@ -68,3 +68,5 @@
 .app-shell{height:100vh;height:100dvh;min-height:0;overflow:hidden}
 .sidebar{height:100vh;height:100dvh;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .main-area{height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain}
+.result-toolbar{flex-wrap:wrap}
+.result-toolbar-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
