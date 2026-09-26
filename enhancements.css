@@ -81,6 +81,8 @@
 .main-area{height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain}
 .question-list{min-width:0;grid-template-columns:minmax(0,1fr)}
 .question-card{min-width:0;max-width:100%}
+.question-card .card-stem{min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden}
+.question-card .card-stem .katex-display{max-width:100%;overflow-x:auto}
 .result-toolbar{flex-wrap:wrap}
 .result-toolbar-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .duplicate-pair{border-top:1px solid #e0e9e8;margin-top:16px;padding-top:14px}
