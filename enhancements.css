@@ -8,6 +8,14 @@
 .smart-recognized span{font-size:11px;color:#176b5e;background:#fff;border:1px solid #c3dbd3;border-radius:100px;padding:4px 9px}
 .topic-search{display:block;width:100%;padding:8px 10px;font-size:11px;margin:8px 0}
 .topic-option[hidden]{display:none!important}
+.topic-chapter[hidden]{display:none!important}
+.topic-chapter{border-top:1px solid #e3ebe7;padding:3px 0}
+.topic-chapter:first-child{border-top:0}
+.topic-chapter>summary{cursor:pointer;color:#365e59;font-size:12px;font-weight:750;padding:7px 3px;list-style:none}
+.topic-chapter>summary::-webkit-details-marker{display:none}
+.topic-chapter>summary:before{content:'▸';display:inline-block;margin-right:8px;color:#64988e;transition:transform .15s}
+.topic-chapter[open]>summary:before{transform:rotate(90deg)}
+.topic-chapter-items{padding-left:8px}
 .topic-selector:has(.topic-option:not([hidden])){max-height:255px}
 .source-group-heading{font-size:12px;font-weight:800;letter-spacing:.04em;color:#2a6d63;background:#f3f9f6;padding:9px 13px;border-radius:8px;margin:14px 0 8px}
 .source-group-heading:first-child{margin-top:0}

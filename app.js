@@ -81,7 +81,8 @@ function topicTree() {
   function branch(parent, depth = 0) {
     return (children.get(parent) || []).map(topic => `<label class="topic-option level-${Math.min(depth, 2)}"><input type="checkbox" name="topicIds" value="${escapeHtml(topic.id)}"><span>${escapeHtml(topic.name)}</span></label>${branch(topic.id, depth + 1)}`).join('');
   }
-  $('#filter-topics').innerHTML = branch('root');
+  $('#filter-topics').innerHTML = (children.get('root') || []).map(chapter =>
+    `<details class="topic-chapter"><summary>${escapeHtml(chapter.name)}</summary><div class="topic-chapter-items"><label class="topic-option level-0"><input type="checkbox" name="topicIds" value="${escapeHtml(chapter.id)}"><span>整个${escapeHtml(chapter.name)}</span></label>${branch(chapter.id, 1)}</div></details>`).join('');
 }
 
 function schoolOptions(region, current = '') {
@@ -311,8 +312,13 @@ for (const selector of ['#filter-query', '#filter-smart']) $(selector).addEventL
 });
 document.querySelectorAll('[data-topic-search]').forEach(input => input.addEventListener('input', () => {
   const needle = input.value.trim().toLowerCase();
-  for (const label of document.getElementById(input.dataset.topicSearch).querySelectorAll('.topic-option')) {
-    label.hidden = !!needle && !label.textContent.toLowerCase().includes(needle) && !label.querySelector('input:checked');
+  for (const chapter of document.getElementById(input.dataset.topicSearch).querySelectorAll('.topic-chapter')) {
+    const titleMatches = !!needle && chapter.querySelector('summary').textContent.toLowerCase().includes(needle);
+    for (const label of chapter.querySelectorAll('.topic-option')) {
+      label.hidden = !!needle && !titleMatches && !label.textContent.toLowerCase().includes(needle) && !label.querySelector('input:checked');
+    }
+    chapter.hidden = !!needle && !chapter.querySelector('.topic-option:not([hidden])');
+    if (needle && !chapter.hidden) chapter.open = true;
   }
 }));
 $('#question-list').addEventListener('click', event => { const button = event.target.closest('[data-question-id]'); if (button) openDetail(button.dataset.questionId); });
