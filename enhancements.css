@@ -84,3 +84,14 @@
 .history-version p{color:#4d646c;line-height:1.6;overflow-wrap:anywhere}
 .detail-section .solution-prose,.official-solution .solution-part .latex-content{line-height:1.52;white-space:pre-line}
 .detail-section .solution-prose .katex-display,.official-solution .solution-part .katex-display{margin:.28em 0;padding:0;overflow-x:auto;overflow-y:hidden;text-align:left}
+.maintenance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:20px}
+.maintenance-grid .section-card{min-width:0;padding:20px}
+.maintenance-grid .section-card-heading{align-items:center}
+.maintenance-grid .section-card-heading h2{margin:0}
+.maintenance-ok{color:#287365;font-weight:700}
+.maintenance-problem{color:#a45b38;font-weight:700}
+.operation-list{max-height:390px;overflow-y:auto;border-top:1px solid #e2eae8;margin-top:16px}
+.operation-row{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #edf1f0;padding:10px 0;font-size:12px;color:#324e52}
+.operation-row span{overflow-wrap:anywhere}
+.operation-row time{flex-shrink:0;color:#7b8d90}
+@media(max-width:800px){.maintenance-grid{grid-template-columns:1fr}.operation-row{display:block}.operation-row time{display:block;margin-top:4px}}
