@@ -40,7 +40,7 @@ function displayMathText(value, question = false, choice = false, solution = fal
   if (solution) text = text.replace(/([.;])\s*(?=(?:由|又|故|因此|于是|综上|解得|代入|设|所以|首先|最后|再|检验))/g, '$1\n\n')
     .replace(/(?<!\$)\$([^$\n]{90,})\$(?!\$)/g, (match, formula) => `\n$$${formula}$$\n`);
   if (!question && !/\$|\\\(|\\\[|[\u3400-\u9fff]/.test(text) &&
-    /\\(?:frac|dfrac|tfrac|sqrt|left|right|sum|prod|int|lim|cdot|times|vec|overrightarrow|pi|theta|alpha|beta|infty|pm|leq|geq|neq|perp|parallel|begin)\b/.test(text)) {
+    /\\(?:dfrac|frac|tfrac)(?:\b|(?=\d))|\\(?:sqrt|left|right|sum|prod|int|lim|cdot|times|vec|overrightarrow|pi|theta|alpha|beta|infty|pm|leq|geq|neq|perp|parallel|begin)\b/.test(text)) {
     text = `$${text}$`;
   }
   text = text.replace(/(?<!\$)\$([^$\r\n]+)\$(?!\$)/g, (_, formula) =>
