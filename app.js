@@ -17,8 +17,8 @@ function escapeHtml(value = '') {
 
 function stripDisplayedQuestionNumber(value, number) {
   const digits = String(number ?? '').match(/\d+/)?.[0];
-  if (!digits) return String(value ?? '');
-  return String(value ?? '').replace(new RegExp(`^\\s*(?:第\\s*${digits}\\s*题|${digits}\\s*[.．、:：])(?=\\s|["'“”\\u3400-\\u9fff$\\\\(])\\s*`), '');
+  const text = digits ? String(value ?? '').replace(new RegExp(`^\\s*(?:第\\s*${digits}\\s*题|${digits}\\s*[.．、:：])(?=\\s|["'“”\\u3400-\\u9fff$\\\\(])\\s*`), '') : String(value ?? '');
+  return text.replace(/^\s*[（(]\s*本题\s*(?:满分|分值)\s*\d+(?:\.\d+)?\s*分\s*[）)]\s*/, '');
 }
 
 function displayMathText(value, question = false, choice = false, solution = false) {
