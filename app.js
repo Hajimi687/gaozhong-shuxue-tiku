@@ -15,6 +15,12 @@ function escapeHtml(value = '') {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 }
 
+function stripDisplayedQuestionNumber(value, number) {
+  const digits = String(number ?? '').match(/\d+/)?.[0];
+  if (!digits) return String(value ?? '');
+  return String(value ?? '').replace(new RegExp(`^\\s*(?:第\\s*${digits}\\s*题|${digits}\\s*[.．、:：])(?=\\s|["'“”\\u3400-\\u9fff$\\\\(])\\s*`), '');
+}
+
 function displayMathText(value, question = false, choice = false, solution = false) {
   let text = String(value ?? '').replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
     '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
@@ -190,7 +196,7 @@ function search(page = 1) {
   $('#active-filter-summary').textContent = filterCount ? `已使用 ${filterCount} 类筛选` : '全部已发布题目';
   $('#question-list').innerHTML = visible.length ? visible.map(question => {
     const source = sourceById.get(question.sourceId) || {};
-    const stem = (question.tikzRenderFailed ? String(question.stemLatex || '') : stripTikz(question.stemLatex)).replace(/\s+/g, ' ').trim();
+    const stem = stripDisplayedQuestionNumber(question.tikzRenderFailed ? String(question.stemLatex || '') : stripTikz(question.stemLatex), question.questionNumber).replace(/\s+/g, ' ').trim();
     const topicsText = question.topicIds.map(id => topicById.get(id)?.name).filter(Boolean).join('、');
     return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '个人录入', question.questionNumber].filter(Boolean).join(' · '))}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">${DIFFICULTY[question.difficulty - 1]}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
   }).join('') : `<div class="empty-state"><div class="empty-icon">∅</div><h2>${data.questions.length ? '没有找到符合条件的题目' : '题库暂时没有已发布题目'}</h2><p>${data.questions.length ? '试试放宽年份、难度或考点条件。' : '老师录入并校对题目后，这里会自动显示。'}</p></div>`;
@@ -199,14 +205,22 @@ function search(page = 1) {
 }
 
 function detailSection(title, value, empty = '尚未填写', question = false, choice = false, solution = false) {
-  const text = title === 'AI 详细解析' ? stripTikz(value) : value;
+  const text = title === 'AI 详细解析' ? stripTikz(value) :
+    title === '题干' ? stripDisplayedQuestionNumber(value, selectedQuestion?.questionNumber) : value;
   const figures = title === 'AI 详细解析' ? (selectedQuestion?.solutionTikzUrls || []).map(url =>
     `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="参考作图" loading="lazy"></figure>`).join('') : '';
   return `<section class="detail-section"><h3>${title}</h3><div class="latex-content${solution ? ' solution-prose' : ''}">${text ? (solution ? displaySolutionText(text) : displayMathText(text, question, choice)) : `<span class="muted">${empty}</span>`}</div>${figures}</section>`;
 }
 
 function displaySolutionText(value) {
-  return displayMathText(value, false, false, true).replace(/\n{2,}/g, '\n').trim();
+  const source = String(value ?? '').trim();
+  const markers = [...source.matchAll(/(?:^|\n)\s*[（(]([1-9]\d*)[）)]\s*/g)];
+  if (!markers.length || markers[0].index !== 0) return displayMathText(source, false, false, true).replace(/\n{2,}/g, '\n').trim();
+  return markers.map((marker, index) => {
+    const start = marker.index + marker[0].length;
+    const end = index + 1 < markers.length ? markers[index + 1].index : source.length;
+    return `<section class="solution-subquestion"><h4>第 ${escapeHtml(marker[1])} 问</h4><div>${displayMathText(source.slice(start, end).trim(), false, false, true).replace(/\n{2,}/g, '\n')}</div></section>`;
+  }).join('');
 }
 
 function openDetail(id) {

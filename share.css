@@ -4,6 +4,9 @@
 .source-card{gap:13px}
 .question-asset{margin:10px 0}.question-asset img{display:block;max-width:100%;max-height:420px;object-fit:contain}
 .detail-section .solution-prose,.official-solution .solution-part .latex-content{line-height:1.52;white-space:pre-line}
+.solution-subquestion{padding:7px 0 9px;white-space:pre-line}
+.solution-subquestion+.solution-subquestion{border-top:1px solid #e3ebe8;margin-top:6px;padding-top:13px}
+.solution-subquestion h4{font-size:13px;line-height:1.4;color:#2d665e;margin:0 0 5px;font-weight:700}
 .detail-section .solution-prose .katex-display,.official-solution .solution-part .katex-display{margin:.28em 0;padding:0;overflow-x:auto;overflow-y:hidden;text-align:left}
 .filter-panel [hidden]{display:none!important}
 .result-toolbar{min-height:35px}
