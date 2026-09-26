@@ -111,3 +111,6 @@
 .source-navigator label{font-size:12px;color:#58716f;font-weight:700}
 .source-navigator input,.source-navigator select{display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid #d3e0dd;border-radius:9px;background:#fff;font:inherit}
 @media(max-width:700px){.source-navigator{grid-template-columns:1fr 1fr}.source-navigator label:first-child{grid-column:1 / -1}}
+.image-order-row{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;padding:.45rem 0;border-bottom:1px solid #dfe9e7}
+.image-order-row img{width:74px;height:58px;object-fit:contain;background:#fff;border:1px solid #dfe9e7}
+.image-order-row button{padding:.35rem .55rem}
