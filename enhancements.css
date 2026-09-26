@@ -83,6 +83,7 @@
 .question-card{min-width:0;max-width:100%}
 .question-card .card-stem{min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden}
 .question-card .card-stem .katex-display{max-width:100%;overflow-x:auto}
+@media(max-width:740px){.page-heading{flex-wrap:wrap;gap:12px}.page-heading>div{min-width:0;flex:1 1 180px}.page-heading button{max-width:100%}}
 .result-toolbar{flex-wrap:wrap}
 .result-toolbar-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .duplicate-pair{border-top:1px solid #e0e9e8;margin-top:16px;padding-top:14px}
