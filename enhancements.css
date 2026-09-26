@@ -114,3 +114,11 @@
 .image-order-row{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;padding:.45rem 0;border-bottom:1px solid #dfe9e7}
 .image-order-row img{width:74px;height:58px;object-fit:contain;background:#fff;border:1px solid #dfe9e7}
 .image-order-row button{padding:.35rem .55rem}
+.image-zoom-dialog{border:0;border-radius:14px;padding:0;width:min(95vw,1200px);max-width:none;height:min(92vh,900px);max-height:none;background:#f4f7f7;box-shadow:0 18px 70px #142d3970}
+.image-zoom-dialog::backdrop{background:#0d2332bd}
+.image-zoom-toolbar{display:flex;align-items:center;justify-content:center;gap:.7rem;padding:.6rem;background:#fff;border-bottom:1px solid #d6e3e4}
+.image-zoom-toolbar button{padding:.35rem .7rem}
+#image-zoom-viewport{height:calc(100% - 54px);display:grid;place-items:center;overflow:hidden;cursor:grab;touch-action:none}
+#image-zoom-viewport:active{cursor:grabbing}
+#image-zoom-picture{max-width:95%;max-height:95%;object-fit:contain;user-select:none;pointer-events:none}
+#detail-body img,#import-candidates img,#question-live-preview img,#question-image-list img{cursor:zoom-in}
