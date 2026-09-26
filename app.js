@@ -96,7 +96,8 @@ function updateSourceFilterVisibility() {
   const available = {
     school: $('#filter-school').options.length > 1,
     source: $('#filter-source').options.length > 1,
-    'school-tier': data.sources.some(source => source.category === '学校试卷' && canonicalRegion(source.region) === '上海')
+    'school-tier': (!$('#filter-region').value || $('#filter-region').value === '上海')
+      && data.sources.some(source => source.category === '学校试卷' && canonicalRegion(source.region) === '上海' && source.school)
   };
   for (const [kind, show] of Object.entries(available)) {
     const select = $(`#filter-${kind}`);

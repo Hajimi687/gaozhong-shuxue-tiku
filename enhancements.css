@@ -7,7 +7,7 @@
 .smart-recognized:empty{display:none}
 .smart-recognized span{font-size:11px;color:#176b5e;background:#fff;border:1px solid #c3dbd3;border-radius:100px;padding:4px 9px}
 .topic-search{display:block;width:100%;padding:8px 10px;font-size:11px;margin:8px 0}
-.topic-option[hidden]{display:none!important}
+.filter-panel [hidden],.topic-option[hidden]{display:none!important}
 .topic-chapter[hidden]{display:none!important}
 .topic-chapter{border-top:1px solid #e3ebe7;padding:3px 0}
 .topic-chapter:first-child{border-top:0}
