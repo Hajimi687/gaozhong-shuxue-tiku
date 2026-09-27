@@ -123,6 +123,14 @@
 .activity-cell.level-1{background:#b8dad0}.activity-cell.level-2{background:#86beb0}
 .activity-cell.level-3{background:#509b87}.activity-cell.level-4{background:#257a64}
 .activity-calendar-note{font-size:11px;color:#81918d;margin:3px 0 14px}
+.hourly-scroll{max-width:100%;overflow-x:auto;padding:2px 0 8px}
+.hourly-grid{min-width:640px;width:max-content}
+.hourly-row{display:grid;grid-template-columns:54px repeat(24,20px);gap:4px;align-items:center;margin-bottom:4px}
+.hourly-day{font-size:11px;color:#607978}
+.hourly-hour{font-size:9px;color:#839692;white-space:nowrap}
+.hourly-cell{display:block;width:20px;height:14px;border-radius:2px;background:#edf2f1}
+.hourly-cell.level-1{background:#b8dad0}.hourly-cell.level-2{background:#86beb0}
+.hourly-cell.level-3{background:#509b87}.hourly-cell.level-4{background:#257a64}
 .model-status{color:#496b68;font-size:12px;font-weight:700;margin-top:7px}
 @media(max-width:800px){.maintenance-grid{grid-template-columns:1fr}.operation-row{display:block}.operation-row time{display:block;margin-top:4px}}
 .quality-panel{margin-top:20px;padding:20px}
