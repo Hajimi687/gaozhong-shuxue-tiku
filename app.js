@@ -1,5 +1,6 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
 import { rankSimilar } from './similarity.js';
+import { radians } from './angle-format.mjs';
 
 const $ = selector => document.querySelector(selector);
 let data = { topics: [], sources: [], questions: [], options: {} };
@@ -22,7 +23,7 @@ function stripDisplayedQuestionNumber(value, number) {
 }
 
 function displayMathText(value, question = false, choice = false, solution = false) {
-  let text = String(value ?? '').replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
+  let text = radians(value).replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
     '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
     '（': '(', '）': ')', '【': '[', '】': ']', '、': ',',
     '“': '"', '”': '"', '‘': "'", '’': "'"
