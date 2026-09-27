@@ -166,3 +166,11 @@
 .combined-search summary{cursor:pointer;font-weight:600;color:#315e63}
 .combined-search p{font-size:.8rem;line-height:1.5;margin:.65rem 0}
 .combined-search select,.combined-search input{width:100%;min-width:0}
+.formatting-panel { margin-top: 24px; }
+.format-item { border-top: 1px solid #dce5e4; padding: 14px 0; }
+.format-item summary { cursor: pointer; }
+.format-item input[type=checkbox] { width: auto; margin-right: 10px; }
+.format-comparison { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 12px 0; }
+.format-comparison pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f4f8f7; padding: 12px; font-size: 14px; line-height: 1.6; max-height: 340px; overflow-y: auto; }
+.formatting-panel #format-status { margin: 12px 0; }
+@media(max-width:700px) { .format-comparison { grid-template-columns: minmax(0,1fr); } }
