@@ -207,6 +207,7 @@ function search(page = 1) {
 }
 
 function detailSection(title, value, empty = '尚未填写', question = false, choice = false, solution = false) {
+  if (title === '题干' && selectedQuestion) return stemWithImages(selectedQuestion, value);
   const text = title === 'AI 详细解析' ? stripTikz(value) :
     title === '题干' ? stripDisplayedQuestionNumber(value, selectedQuestion?.questionNumber) : value;
   const figures = title === 'AI 详细解析' ? (selectedQuestion?.solutionTikzUrls || []).map(url =>
@@ -226,8 +227,21 @@ function displaySolutionText(value) {
 }
 
 function imageFigures(question) {
+  // The stem renderer places these figures beside their source paragraphs.
+  return '';
+}
+
+function stemWithImages(question, stem) {
+  const paragraphs = String(stem ?? '').trim().split(/\r?\n\s*\r?\n/).filter(Boolean);
   const urls = question.assetUrls?.length ? question.assetUrls : question.assetUrl ? [question.assetUrl] : [];
-  return urls.map((url, index) => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="题目配图 ${index + 1}" loading="lazy"></figure>`).join('');
+  const assets = question.imageAssets || [];
+  const at = position => urls.map((url, index) => ({ url, index }))
+    .filter(({ index }) => Number.isInteger(assets[index]?.afterParagraph) &&
+      assets[index].afterParagraph >= 0 && assets[index].afterParagraph < paragraphs.length
+      ? assets[index].afterParagraph === position : position === paragraphs.length)
+    .map(({ url, index }) => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="题目配图 ${index + 1}" loading="lazy"></figure>`).join('');
+  return `<section class="detail-section"><h3>题干</h3>${at(0)}${paragraphs.map((paragraph, index) =>
+    `<div class="latex-content stem-paragraph">${displayMathText(paragraph, true, ['选择题', '多选题'].includes(question.questionType))}</div>${at(index + 1)}`).join('')}</section>`;
 }
 
 function openDetail(id) {
