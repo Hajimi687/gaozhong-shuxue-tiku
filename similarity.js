@@ -1,3 +1,13 @@
+// Only strict, curriculum-specific paraphrases. This supplements lexical search;
+// it never rewrites the archived stem or claims a model-derived similarity score.
+const EQUIVALENT_TERMS = [
+  [/充分必要条件|充要条件/g, '充要关系'],
+  [/单调递增|严格递增|增函数/g, '单调递增'],
+  [/单调递减|严格递减|减函数/g, '单调递减'],
+  [/最大公约数|最大公因数/g, '最大公因数'],
+  [/函数表达式|函数解析式/g, '函数解析式']
+];
+
 function terms(value) {
   const text = String(value || '').normalize('NFKC').toLowerCase()
     .replace(/\\(?:left|right|displaystyle|textstyle|quad|qquad|,|;|!)/g, ' ')
@@ -8,6 +18,10 @@ function terms(value) {
   }
   const han = (text.match(/[\p{Script=Han}]+/gu) || []).join('');
   for (let i = 0; i < han.length - 1; i++) result.add(han.slice(i, i + 2));
+  for (const [pattern, canonical] of EQUIVALENT_TERMS) {
+    pattern.lastIndex = 0;
+    if (pattern.test(text)) result.add(`同义:${canonical}`);
+  }
   return result;
 }
 
