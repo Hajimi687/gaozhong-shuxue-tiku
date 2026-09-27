@@ -123,6 +123,7 @@
 .activity-cell.level-1{background:#b8dad0}.activity-cell.level-2{background:#86beb0}
 .activity-cell.level-3{background:#509b87}.activity-cell.level-4{background:#257a64}
 .activity-calendar-note{font-size:11px;color:#81918d;margin:3px 0 14px}
+.model-status{color:#496b68;font-size:12px;font-weight:700;margin-top:7px}
 @media(max-width:800px){.maintenance-grid{grid-template-columns:1fr}.operation-row{display:block}.operation-row time{display:block;margin-top:4px}}
 .quality-panel{margin-top:20px;padding:20px}
 .quality-panel .section-card-heading{align-items:center}
