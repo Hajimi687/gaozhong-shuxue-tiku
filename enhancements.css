@@ -162,3 +162,7 @@
 #image-zoom-viewport:active{cursor:grabbing}
 #image-zoom-picture{max-width:95%;max-height:95%;object-fit:contain;user-select:none;pointer-events:none}
 #detail-body img,#import-candidates img,#question-live-preview img,#question-image-list img{cursor:zoom-in}
+.combined-search{margin:.8rem 0;border:1px solid #d6e3e4;border-radius:8px;padding:.65rem}
+.combined-search summary{cursor:pointer;font-weight:600;color:#315e63}
+.combined-search p{font-size:.8rem;line-height:1.5;margin:.65rem 0}
+.combined-search select,.combined-search input{width:100%;min-width:0}
