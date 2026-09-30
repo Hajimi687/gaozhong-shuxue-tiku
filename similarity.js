@@ -1,6 +1,7 @@
 // Only strict, curriculum-specific paraphrases. This supplements lexical search;
 // it never rewrites the archived stem or claims a model-derived similarity score.
 const EQUIVALENT_TERMS = [
+  [/图像|图象/g, '图像'],
   [/充分必要条件|充要条件/g, '充要关系'],
   [/单调递增|严格递增|增函数/g, '单调递增'],
   [/单调递减|严格递减|减函数/g, '单调递减'],
@@ -36,7 +37,7 @@ export function rankSimilar(query, candidates, { topicIds = [], difficulty, ques
   const queryTerms = terms(query);
   const topicSet = new Set(topicIds);
   return candidates.filter(item => item.id !== excludeId).map(item => {
-    const textScore = overlap(queryTerms, terms(item.stemLatex || item.stem_latex));
+    const textScore = overlap(queryTerms, terms(item.searchText ?? item.stemLatex ?? item.stem_latex));
     const shared = (item.topicIds || []).filter(id => topicSet.has(id)).length;
     const sameType = questionType && item.questionType === questionType;
     const difficultyScore = Number.isInteger(difficulty) ? Math.max(0, 4 - Math.abs(item.difficulty - difficulty)) / 4 : 0;

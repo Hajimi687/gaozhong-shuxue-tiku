@@ -1,6 +1,7 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
 import { rankSimilar } from './similarity.js';
 import { radians } from './angle-format.mjs';
+import { renderLatexBlocksHtml, renderLatexTextHtml, splitLatexParagraphs } from './latex-structures.mjs';
 
 const $ = selector => document.querySelector(selector);
 let data = { topics: [], sources: [], questions: [], options: {} };
@@ -23,6 +24,10 @@ function stripDisplayedQuestionNumber(value, number) {
 }
 
 function displayMathText(value, question = false, choice = false, solution = false) {
+  const structured = renderLatexBlocksHtml(value, text => displayMathText(text, question, choice, solution));
+  if (structured !== null) return structured;
+  const styled = renderLatexTextHtml(value, text => displayMathText(text, question, choice, solution));
+  if (styled !== null) return styled;
   let text = radians(value).replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
     '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
     '（': '(', '）': ')', '【': '[', '】': ']', '、': ',',
@@ -238,7 +243,7 @@ function solutionImageFigures(question, role) {
 }
 
 function stemWithImages(question, stem) {
-  const paragraphs = String(stem ?? '').trim().split(/\r?\n\s*\r?\n/).filter(Boolean);
+  const paragraphs = splitLatexParagraphs(stem);
   const urls = question.assetUrls?.length ? question.assetUrls : question.assetUrl ? [question.assetUrl] : [];
   const assets = question.imageAssets || [];
   const at = position => urls.map((url, index) => ({ url, index }))

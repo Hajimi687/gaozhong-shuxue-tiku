@@ -166,6 +166,23 @@
 .combined-search summary{cursor:pointer;font-weight:600;color:#315e63}
 .combined-search p{font-size:.8rem;line-height:1.5;margin:.65rem 0}
 .combined-search select,.combined-search input{width:100%;min-width:0}
+.trash-dialog{width:min(1050px,95vw)}
+.trash-toolbar,.common-topics{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:12px 0}
+.trash-toolbar{justify-content:space-between}
+.trash-row{flex-wrap:wrap}
+.trash-row small{display:block;margin-top:6px}
+.trash-preview{flex:1 1 100%;min-width:0}
+.trash-preview[hidden]{display:none}
+.topic-shortcut{border:1px solid #b8d0c9;border-radius:8px;background:#f3f8f6;color:#315e63;padding:5px 10px;cursor:pointer}
+.topic-shortcut[aria-pressed=true]{background:#437d71;color:#fff}
+.latex-table-wrap{max-width:100%;overflow-x:auto;margin:.5em 0;white-space:normal}
+.latex-table{border-collapse:collapse;max-width:100%;font:inherit;color:inherit}
+.latex-table td{border:1px solid #9eada8;padding:.3em .7em;text-align:center;vertical-align:middle}
+.latex-list{list-style:none;margin:.4em 0;padding:0;white-space:normal}
+.latex-list>li{display:flex;gap:.5em;margin:.25em 0;align-items:baseline}
+.latex-list-label{flex:none}.latex-list>li>div{min-width:0}
+.similar-item .card-stem{margin:10px 0;white-space:pre-line;line-height:1.6;font-size:15px;color:#24323a}
+.similar-item .card-stem .katex-display{margin:.28em 0;max-width:100%;overflow-x:auto;overflow-y:hidden;text-align:left}
 .formatting-panel { margin-top: 24px; }
 .format-item { border-top: 1px solid #dce5e4; padding: 14px 0; }
 .format-item summary { cursor: pointer; }
