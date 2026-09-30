@@ -1,6 +1,6 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
 import { rankSimilar } from './similarity.js';
-import { radians } from './angle-format.mjs';
+import { radians, horizontalComparisons } from './angle-format.mjs';
 import { renderLatexBlocksHtml, renderLatexTextHtml, splitLatexParagraphs } from './latex-structures.mjs';
 
 const $ = selector => document.querySelector(selector);
@@ -28,7 +28,7 @@ function displayMathText(value, question = false, choice = false, solution = fal
   if (structured !== null) return structured;
   const styled = renderLatexTextHtml(value, text => displayMathText(text, question, choice, solution));
   if (styled !== null) return styled;
-  let text = radians(value).replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
+  let text = horizontalComparisons(radians(value)).replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
     '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
     '（': '(', '）': ')', '【': '[', '】': ']', '、': ',',
     '“': '"', '”': '"', '‘': "'", '’': "'"

@@ -1,4 +1,8 @@
 // Convert explicit numeric angle measures only; never rewrite TikZ coordinates.
+export function horizontalComparisons(value) {
+  return String(value ?? '').replace(/\\(leqslant|geqslant)\b/g, (_, command) =>
+    command === 'leqslant' ? '\\leq' : '\\geq').replaceAll('⩽', '≤').replaceAll('⩾', '≥');
+}
 export function radians(value) {
   const convert = (text, wrap) => text.replace(/(?<![\w.])(\d+(?:\.\d+)?)\s*(?:\^\s*(?:\{\s*\\circ\s*\}|\\circ)|°)(?!\s*[CF℃℉])/g, (_, degrees) => {
     const places = degrees.includes('.') ? degrees.split('.')[1].length : 0;
