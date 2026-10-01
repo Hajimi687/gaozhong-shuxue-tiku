@@ -1,6 +1,6 @@
 // Convert explicit numeric angle measures only; never rewrite TikZ coordinates.
 export function horizontalComparisons(value) {
-  return String(value ?? '').replace(/\\(leqslant|geqslant)\b/g, (_, command) =>
+  return String(value ?? '').replace(/\\(leqslant|geqslant)(?![A-Za-z])/g, (_, command) =>
     command === 'leqslant' ? '\\leq' : '\\geq').replaceAll('⩽', '≤').replaceAll('⩾', '≥');
 }
 export function radians(value) {
