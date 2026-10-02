@@ -66,8 +66,12 @@ export function parseSearchIntent(raw, { sources = [], topics = [] } = {}) {
     if (take(term, `难度：${n}`, 'difficulty', n)) break;
   }
 
-  for (const type of ['多选题', '选择题', '填空题', '解答题']) {
-    if (take(type, `题型：${type}`, 'questionType', type)) break;
+  for (const [term, type] of [
+    ['多项选择题', '多选题'], ['单项选择题', '单选题'], ['多选题', '多选题'],
+    ['单选题', '单选题'], ['选择题', '单选题'], ['多选', '多选题'], ['单选', '单选题'],
+    ['填空题', '填空题'], ['解答题', '解答题']
+  ]) {
+    if (take(term, `题型：${type}`, 'questionType', type)) break;
   }
   const number = remaining.match(/第\s*[0-9一二三四五六七八九十]+\s*题/);
   if (number) take(number[0], `题号：${number[0]}`, 'questionNumber', number[0].replace(/\s/g, ''));
