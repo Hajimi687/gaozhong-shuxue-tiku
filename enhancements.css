@@ -199,3 +199,4 @@
 .web-scan-counts>div{background:#f2f7f5;border-radius:8px;padding:10px 12px}.web-scan-counts dt{font-size:12px;color:#59726f}
 .web-scan-counts dd{margin:4px 0 0;font-size:20px;font-weight:700;color:#315e63}.web-scan-actions .secondary-button{font-size:13px;padding:9px 14px}
 @media(max-width:600px){.web-scan-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.web-scan-batch-heading{align-items:flex-start}}
+.question-asset img,.import-figure img,.question-preview img,.tikz-preview img{width:auto;height:auto;max-width:min(100%,6.8cm);max-height:3.8cm;object-fit:contain}
