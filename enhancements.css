@@ -200,3 +200,11 @@
 .web-scan-counts dd{margin:4px 0 0;font-size:20px;font-weight:700;color:#315e63}.web-scan-actions .secondary-button{font-size:13px;padding:9px 14px}
 @media(max-width:600px){.web-scan-counts{grid-template-columns:repeat(2,minmax(0,1fr))}.web-scan-batch-heading{align-items:flex-start}}
 .question-asset img,.import-figure img,.question-preview img,.tikz-preview img{width:auto;height:auto;max-width:min(100%,6.8cm);max-height:3.8cm;object-fit:contain}
+.question-result .question-card { width:100%; }
+.question-card-actions { display:flex; justify-content:flex-end; padding:.45rem 0 .15rem; }
+.question-card-actions button { font-size:.85rem; padding:.4rem .75rem; }
+.subtheme-buttons { display:flex; gap:.35rem; margin:.4rem 0 .7rem; }
+.subtheme-buttons button { flex:1; padding:.5rem .35rem; border:1px solid #cbd9d8; border-radius:.5rem; background:#fff; color:#426661; cursor:pointer; }
+.subtheme-buttons button[aria-pressed="true"] { background:#e7f2ef; border-color:#438074; color:#27564c; font-weight:600; }
+.source-subthemes[hidden] { display:none; }
+.revision-feedback { white-space:pre-wrap; overflow-wrap:anywhere; color:#526866; }
