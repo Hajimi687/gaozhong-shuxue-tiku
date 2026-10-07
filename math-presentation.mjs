@@ -18,41 +18,51 @@ export function normalizeFormula(value) {
   let text = String(value ?? '')
     .replace(/\\left\s*\|(?=[^|])/g, '\\left\\lvert ')
     .replace(/\\right\s*\|/g, '\\right\\rvert ')
+    .replace(/\\left\s*\\vert\b/g, '\\left\\lvert ')
+    .replace(/\\right\s*\\vert\b/g, '\\right\\rvert ')
     .replace(/(\\left\s*\\\{\s*\\begin\{array\}(?:\[[^\]]*\])?\s*)\{c\}/g, '$1{l}');
-  const edits = []; let pending = null, depth = 0, previous = '';
+  const edits = []; let pending = null, depth = 0, previous = ''; const contexts = [];
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     if (/\s/.test(c)) continue;
     if (c === '\\') {
       const command = text.slice(i).match(/^\\(?:[A-Za-z]+|.)/)[0];
+      if (command === '\\{') { depth++; contexts.push({ depth, kind: 'set' }); previous = 'operator'; i++; continue; }
+      if (command === '\\}') { depth--; contexts.pop(); if (pending && pending.depth > depth) pending = null; previous = 'operand'; i++; continue; }
+      if (/^\\(?:displaystyle|textstyle|scriptstyle|scriptscriptstyle|quad|qquad|enspace|thinspace|medspace|thickspace|[ ,;!])$/.test(command)) {
+        i += command.length - 1; continue;
+      }
       if (/^\\(?:text|mbox|operatorname|mathrm|begin|end)$/.test(command)) {
         let at = i + command.length;
         while (/\s/.test(text[at] || '') && at < text.length) at++;
         at = endGroup(text, at);
         if (command === '\\begin' && /\{array\}$/.test(text.slice(i, at))) {
           while (/\s/.test(text[at] || '') && at < text.length) at++;
+          if (text[at] === '[') { const end = text.indexOf(']', at); if (end >= at) at = end + 1; }
+          while (/\s/.test(text[at] || '') && at < text.length) at++;
           at = endGroup(text, at); // Column rules are not absolute values.
         }
-        i = at - 1; previous = 'operand'; continue;
+        i = at - 1; previous = command === '\\begin' ? 'operator' : 'operand'; continue;
       }
-      previous = /^\\(?:le|leq|ge|geq|ne|neq|in|notin|cdot|times|pm|mp|mid|colon|to|Rightarrow|Leftrightarrow)$/.test(command) ? 'operator' : 'operand';
+      previous = /^\\(?:le|leq|ge|geq|ne|neq|in|notin|cdot|times|pm|mp|mid|colon|to|Rightarrow|Leftrightarrow|because|therefore|sin|cos|tan|cot|log|ln|exp|max|min|\\)$/.test(command) ? 'operator' : 'operand';
       i += command.length - 1; continue;
     }
-    if ('({['.includes(c)) { depth++; previous = 'operator'; continue; }
-    if (')}]'.includes(c)) { depth--; previous = 'operand'; continue; }
+    if ('({['.includes(c)) { depth++; contexts.push({ depth, kind: c === '(' && /(?:\bP|\bPr|\\mathbb\s*\{P\})\s*$/.test(text.slice(0, i)) ? 'probability' : 'group' }); previous = 'operator'; continue; }
+    if (')}]'.includes(c)) { depth--; contexts.pop(); if (pending && pending.depth > depth) pending = null; previous = 'operand'; continue; }
     if (c === '|') {
       if (pending && pending.depth === depth) {
         const inside = text.slice(pending.index + 1, i);
-        if (inside.trim() && !/\\\\|&/.test(inside)) {
+        const ambiguousChain = pending.previous === 'operand' && /^\s*[\p{L}\p{N}]/u.test(text.slice(i + 1));
+        if (inside.trim() && !/\\\\|&/.test(inside) && !ambiguousChain) {
           edits.push([pending.index, '\\lvert '], [i, '\\rvert ']);
         }
         pending = null; previous = 'absolute';
-      } else if (!pending && (!previous || ['operator', 'absolute'].includes(previous))) {
-        pending = { index: i, depth }; previous = 'operator';
+      } else if (!pending && (previous !== 'operand' || !['set','probability'].includes(contexts.at(-1)?.kind))) {
+        pending = { index: i, depth, previous }; previous = 'operator';
       } else previous = 'operator'; // a|b, P(A|B), and set conditions keep their meaning.
       continue;
     }
-    previous = /[=+\-<>:,;!^_]/.test(c) ? 'operator' : 'operand';
+    previous = /[=+\-<>:,;!^_\/]/.test(c) ? 'operator' : 'operand';
   }
   for (const [at, replacement] of edits.reverse()) text = text.slice(0, at) + replacement + text.slice(at + 1);
   return text;
