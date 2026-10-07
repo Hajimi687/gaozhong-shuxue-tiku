@@ -20,3 +20,5 @@
 .result-toolbar{min-height:35px}
 @media(max-width:740px){.sidebar{min-height:100vh}.page-heading{min-height:0}.search-layout{display:block}.filter-panel{padding:16px}.result-toolbar{align-items:start}.result-toolbar strong{display:block;margin:0 0 4px}.result-toolbar span{display:block}}
 .stem-paragraph{white-space:pre-wrap;margin:.35rem 0;line-height:1.7}.stem-paragraph + figure{margin:.5rem 0 1rem}
+
+.katex-display.equation-system, .katex-display.equation-system > .katex { text-align: left; }

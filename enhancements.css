@@ -220,3 +220,5 @@
 .subtheme-buttons button[aria-pressed="true"] { background:#e7f2ef; border-color:#438074; color:#27564c; font-weight:600; }
 .source-subthemes[hidden] { display:none; }
 .revision-feedback { white-space:pre-wrap; overflow-wrap:anywhere; color:#526866; }
+
+.katex-display.equation-system, .katex-display.equation-system > .katex { text-align: left; }

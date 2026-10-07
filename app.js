@@ -1,5 +1,6 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
 import { rankSimilar } from './similarity.js';
+import { normalizeMathText, emphasizeSolutionLabels, alignRenderedSystems } from './math-presentation.mjs';
 import { radians, horizontalComparisons } from './angle-format.mjs';
 import { renderLatexBlocksHtml, renderLatexTextHtml, splitLatexParagraphs } from './latex-structures.mjs';
 
@@ -23,10 +24,12 @@ function stripDisplayedQuestionNumber(value, number) {
   return text.replace(/^\s*[（(]\s*本题\s*(?:满分|分值)\s*\d+(?:\.\d+)?\s*分\s*[）)]\s*/, '');
 }
 
-function displayMathText(value, question = false, choice = false, solution = false) {
+function displayMathText(value, question = false, choice = false, solution = false, styledContent = false) {
+  value = normalizeMathText(value);
+  if (solution && !styledContent) value = emphasizeSolutionLabels(value);
   const structured = renderLatexBlocksHtml(value, text => displayMathText(text, question, choice, solution));
   if (structured !== null) return structured;
-  const styled = renderLatexTextHtml(value, text => displayMathText(text, question, choice, solution));
+  const styled = renderLatexTextHtml(value, text => displayMathText(text, question, choice, solution, true));
   if (styled !== null) return styled;
   let text = horizontalComparisons(radians(value)).replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
     '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
@@ -70,6 +73,7 @@ function renderMath(root) {
       ], throwOnError: false, strict: 'ignore'
     });
   }
+  alignRenderedSystems(root);
 }
 
 function optionList(selector, items, label, getValue = item => item, getLabel = item => item) {
