@@ -1,4 +1,6 @@
 // Output formatting only. Never alter archived question/reference text.
+export const PARALLEL_RENDER_MACROS = Object.freeze({ '\\parallel': '\\mathrel{//}' });
+export const PARALLEL_TEX_PREAMBLE = String.raw`\renewcommand{\parallel}{\mathrel{//}}`;
 export const SOLUTION_FORMAT_RULES = String.raw`解析排版：绝对值使用明确的 \lvert ...\rvert 边界，不用普通字母竖线，不在边界内添加 \quad、\qquad 或空白占位。条件概率与整除用 \mid，不混同绝对值。分析、详解、点睛、解法等短标签使用 \textbf{...}；不写Markdown的#标题。方程组各行左对齐，使用 cases 或左列 array{l}，不使用居中列 array{c}。按原题各小问独立分段，正文完整，避免空行占位。`;
 export const MATH_FONT_RULES='题干、选项、解析中的数学数字和表达式均使用LaTeX公式包裹，包括0、8、18等纯数值选项；不把分数之外的整数留作正文文字。题号、小问编号、年份、分值等版面元数据保留正常文本。';
 const mathPattern = /(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<![\\$])\$(?!\$)[^$]*?(?<!\\)\$(?!\$)|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)/g;

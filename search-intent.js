@@ -1,4 +1,5 @@
 // Shared by the local API and the static reader. It only recognizes names already in the catalog.
+import {PAPER_FAMILIES,canonicalPaperFamily,explicitPaperFamily} from '../public/gaokao-papers.mjs';
 export const PROVINCE_NAMES = ['北京', '天津', '河北', '山西', '内蒙古', '辽宁', '吉林', '黑龙江',
   '上海', '江苏', '浙江', '安徽', '福建', '江西', '山东', '河南', '湖北', '湖南',
   '广东', '广西', '海南', '重庆', '四川', '贵州', '云南', '西藏', '陕西', '甘肃',
@@ -33,6 +34,18 @@ export function parseSearchIntent(raw, { sources = [], topics = [] } = {}) {
     return true;
   };
 
+  // Consume the whole paper name before its province or generic 全国卷 token.
+  const familyTerms=PAPER_FAMILIES.filter(value=>value!=='待核对').flatMap(value=>{
+    const roman=value.replace(/一/g,'I').replace(/二/g,'II').replace(/三/g,'III');
+    return [value,roman];
+  }).sort((a,b)=>b.length-a.length);
+  for(const term of familyTerms)if(remaining.includes(term)){
+    const year=Number(remaining.match(/(?:19|20)\d{2}/)?.[0])||null;
+    const family=explicitPaperFamily(term,{year})||canonicalPaperFamily(term);
+    take(term,`卷种：${family}`,'paperFamily',family);
+    filters.category='全国高考';
+    break;
+  }
   // Longer category names first, so “上海高考” does not also become a region token.
   for (const [term, category] of [
     ['上海高考', '上海高考'], ['上海卷', '上海高考'],
