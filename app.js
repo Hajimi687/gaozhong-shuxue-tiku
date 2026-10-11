@@ -3,10 +3,18 @@ import { rankSimilar } from './similarity.js';
 import { normalizeMathText, emphasizeSolutionLabels, alignRenderedSystems } from './math-presentation.mjs';
 import { radians, horizontalComparisons } from './angle-format.mjs';
 import { renderLatexBlocksHtml, renderLatexTextHtml, splitLatexParagraphs } from './latex-structures.mjs';
+import { choiceStemPresentation } from './choice-format.mjs';
+import { questionOriginLabels, questionOriginMetadata } from './question-origins.mjs';
 
 const $ = selector => document.querySelector(selector);
 let data = { topics: [], sources: [], questions: [], options: {} };
 let sourceById = new Map();
+function shareQuestionOrigins(question) {
+  return questionOriginMetadata({ ...sourceById.get(question.sourceId), ...question });
+}
+function shareOriginLabels(question) {
+  return questionOriginLabels({ origins: shareQuestionOrigins(question) });
+}
 let topicById = new Map();
 let questionById = new Map();
 let currentVersion = '';
@@ -164,21 +172,23 @@ function filteredQuestions() {
   };
   const smartTopics = (intent.filters.topicIds || []).map(hasSmartTopic);
   const filtered = data.questions.filter(question => {
-    const source = sourceById.get(question.sourceId) || {};
-    const year = Number(question.questionYear || source.examYear || 0);
-    if (query && ![question.stemLatex, question.answerLatex, question.paperTitle, source.title,
+    const origins = shareQuestionOrigins(question);
+    if (query && ![question.stemLatex, question.answerLatex, ...shareOriginLabels(question),
       ...question.topicIds.map(id => topicById.get(id)?.name)].some(value => String(value || '').toLowerCase().includes(query))) return false;
-    if (effective.sourceId && question.sourceId !== effective.sourceId) return false;
-    if (effective.category && source.category !== effective.category) return false;
-    if (effective.region && canonicalRegion(source.region) !== canonicalRegion(effective.region)) return false;
-    if (effective.school && source.school !== effective.school) return false;
-    if (effective.schoolTier && source.schoolTier !== effective.schoolTier) return false;
-    if (effective.examType && canonicalExamType(source.examType) !== canonicalExamType(effective.examType)) return false;
+    if (!origins.some(origin => {
+      const year = Number(origin.questionYear || origin.examYear || 0);
+      return (!effective.sourceId || origin.sourceId === effective.sourceId)
+        && (!effective.category || origin.sourceCategory === effective.category)
+        && (!effective.region || canonicalRegion(origin.region) === canonicalRegion(effective.region))
+        && (!effective.school || origin.school === effective.school)
+        && (!effective.schoolTier || origin.schoolTier === effective.schoolTier)
+        && (!effective.examType || canonicalExamType(origin.examType) === canonicalExamType(effective.examType))
+        && (!effective.questionNumber || origin.questionNumber.includes(effective.questionNumber.replace(/\D/g, '')))
+        && (!effective.year || year === Number(effective.year))
+        && (!effective.yearFrom || year >= Number(effective.yearFrom))
+        && (!effective.yearTo || year <= Number(effective.yearTo));
+    })) return false;
     if (effective.questionType && question.questionType !== effective.questionType) return false;
-    if (effective.questionNumber && !String(question.questionNumber || '').includes(effective.questionNumber.replace(/\D/g, ''))) return false;
-    if (effective.year && year !== Number(effective.year)) return false;
-    if (effective.yearFrom && year < Number(effective.yearFrom)) return false;
-    if (effective.yearTo && year > Number(effective.yearTo)) return false;
     if (effective.difficulty && question.difficulty !== Number(effective.difficulty)) return false;
     if (effective.difficultyMin && question.difficulty < Number(effective.difficultyMin)) return false;
     if (effective.difficultyMax && question.difficulty > Number(effective.difficultyMax)) return false;
@@ -210,7 +220,7 @@ function search(page = 1) {
     const source = sourceById.get(question.sourceId) || {};
     const stem = stripDisplayedQuestionNumber(question.tikzRenderFailed ? String(question.stemLatex || '') : stripTikz(question.stemLatex), question.questionNumber).replace(/\s+/g, ' ').trim();
     const topicsText = question.topicIds.map(id => topicById.get(id)?.name).filter(Boolean).join('、');
-    return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '个人录入', question.questionNumber].filter(Boolean).join(' · '))}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">估计 ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}%`}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
+    return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${shareOriginLabels(question).map(escapeHtml).join('<br>')}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">估计 ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}%`}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
   }).join('') : `<div class="empty-state"><div class="empty-icon">∅</div><h2>${data.questions.length ? '没有找到符合条件的题目' : '题库暂时没有已发布题目'}</h2><p>${data.questions.length ? '试试放宽年份、难度或考点条件。' : '老师录入并校对题目后，这里会自动显示。'}</p></div>`;
   $('#pagination').innerHTML = maxPage > 1 ? `<button type="button" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>上一页</button><span>第 ${currentPage} / ${maxPage} 页</span><button type="button" data-page="${currentPage + 1}" ${currentPage === maxPage ? 'disabled' : ''}>下一页</button>` : '';
   renderMath($('#question-list'));
@@ -247,16 +257,19 @@ function solutionImageFigures(question, role) {
 }
 
 function stemWithImages(question, stem) {
-  const paragraphs = splitLatexParagraphs(stem);
   const urls = question.assetUrls?.length ? question.assetUrls : question.assetUrl ? [question.assetUrl] : [];
-  const assets = question.imageAssets || [];
+  let assets = question.imageAssets || [];
+  stem=stripDisplayedQuestionNumber(stem,question.questionNumber);
+  if(['单选题','选择题','多选题'].includes(question.questionType))({stem,images:assets}=choiceStemPresentation(stem,undefined,
+    urls.map((url,index)=>assets[index]||{})));
+  const paragraphs = splitLatexParagraphs(stem);
   const at = position => urls.map((url, index) => ({ url, index }))
     .filter(({ index }) => Number.isInteger(assets[index]?.afterParagraph) &&
       assets[index].afterParagraph >= 0 && assets[index].afterParagraph < paragraphs.length
       ? assets[index].afterParagraph === position : position === paragraphs.length)
     .map(({ url, index }) => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="题目配图 ${index + 1}" loading="lazy"></figure>`).join('');
   return `<section class="detail-section"><h3>题干</h3>${at(0)}${paragraphs.map((paragraph, index) =>
-    `<div class="latex-content stem-paragraph">${displayMathText(paragraph, true, ['选择题', '多选题'].includes(question.questionType))}</div>${at(index + 1)}`).join('')}</section>`;
+    `<div class="latex-content stem-paragraph">${displayMathText(paragraph, true, ['单选题', '选择题', '多选题'].includes(question.questionType))}</div>${at(index + 1)}`).join('')}</section>`;
 }
 
 function openDetail(id) {
@@ -265,7 +278,7 @@ function openDetail(id) {
   selectedQuestion = question;
   const source = sourceById.get(question.sourceId) || {};
   const tags = question.topicIds.map(topicId => topicById.get(topicId)?.name).filter(Boolean);
-  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>估计难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}% · ${escapeHtml(question.performance.cohort)} · ${escapeHtml(question.performance.source)}`}</span></div>${detailSection('题干', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex), '尚未填写', true, ['选择题', '多选题'].includes(question.questionType))}${imageFigures(question)}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div><section class="detail-section official-solution"><h3>${escapeHtml(question.referenceHeading || '参考答案与官方解析')}</h3><div class="solution-part"><b>参考答案</b><div class="latex-content">${question.answerLatex || question.officialAnswer ? displayMathText(question.officialAnswer || question.answerLatex) : '<span class="muted">暂未录入</span>'}</div></div><div class="solution-part"><b>官方解析</b><div class="latex-content">${question.officialSolution ? displayMathText(question.officialSolution, false, false, true) : question.referenceHasErrata ? '<span class="muted">详细推导见下方解析</span>' : '<span class="muted">原件未提供官方解析</span>'}</div></div>${solutionImageFigures(question, 'official')}</section>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('AI 详细解析', question.aiSolution, '尚未生成或录入 AI 解答', false, false, true)}${solutionImageFigures(question, 'ai')}<div id="similar-results"></div>`;
+  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>估计难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}% · ${escapeHtml(question.performance.cohort)} · ${escapeHtml(question.performance.source)}`}</span></div><section class="detail-section question-origins"><h3>本题全部出处（${shareOriginLabels(question).length} 份）</h3>${shareOriginLabels(question).map(label => `<p>${escapeHtml(label)}</p>`).join('')}</section>${detailSection('题干', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex), '尚未填写', true, ['单选题', '选择题', '多选题'].includes(question.questionType))}${imageFigures(question)}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div><section class="detail-section official-solution"><h3>${escapeHtml(question.referenceHeading || '参考答案与官方解析')}</h3><div class="solution-part"><b>参考答案</b><div class="latex-content">${question.answerLatex || question.officialAnswer ? displayMathText(question.officialAnswer || question.answerLatex) : '<span class="muted">暂未录入</span>'}</div></div><div class="solution-part"><b>官方解析</b><div class="latex-content">${question.officialSolution ? displayMathText(question.officialSolution, false, false, true) : question.referenceHasErrata ? '<span class="muted">详细推导见下方解析</span>' : '<span class="muted">原件未提供官方解析</span>'}</div></div>${solutionImageFigures(question, 'official')}</section>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('解析', question.aiSolution, '尚未录入解析', false, false, true)}${solutionImageFigures(question, 'ai')}<div id="similar-results"></div>`;
   renderMath($('#detail-body'));
   if (!$('#detail-dialog').open) $('#detail-dialog').showModal();
 }
@@ -275,7 +288,7 @@ function showSimilar() {
   const matches = rankSimilar(selectedQuestion.stemLatex, data.questions,
     { topicIds: selectedQuestion.topicIds, difficulty: selectedQuestion.difficulty,
       questionType: selectedQuestion.questionType, excludeId: selectedQuestion.id });
-  $('#similar-results').innerHTML = `<section class="detail-section"><h3>相似题 · 题干与考点</h3>${matches.length ? matches.map(question => `<button type="button" class="similar-item" data-question-id="${escapeHtml(question.id)}"><strong>${escapeHtml(String(question.stemLatex).slice(0, 120))}</strong><span>${escapeHtml(sourceById.get(question.sourceId)?.title || '个人录入')} · ${escapeHtml(question.reason)}</span></button>`).join('') : '<p class="muted">题库里暂时没有足够相近的题目。</p>'}</section>`;
+  $('#similar-results').innerHTML = `<section class="detail-section"><h3>相似题 · 题干与考点</h3>${matches.length ? matches.map(question => `<button type="button" class="similar-item" data-question-id="${escapeHtml(question.id)}"><strong>${escapeHtml(String(question.stemLatex).slice(0, 120))}</strong><span>${shareOriginLabels(question).map(escapeHtml).join('<br>')} · ${escapeHtml(question.reason)}</span></button>`).join('') : '<p class="muted">题库里暂时没有足够相近的题目。</p>'}</section>`;
   renderMath($('#similar-results'));
 }
 

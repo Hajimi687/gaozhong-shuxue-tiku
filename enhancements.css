@@ -222,3 +222,32 @@
 .revision-feedback { white-space:pre-wrap; overflow-wrap:anywhere; color:#526866; }
 
 .katex-display.equation-system, .katex-display.equation-system > .katex { text-align: left; }
+.original-question[hidden]{display:none}
+.original-file-frame{display:block;width:100%;height:min(65vh,720px);border:1px solid #cbd9d8;border-radius:8px;background:#f5f7f7}
+.original-file-image{display:block;max-width:100%;height:auto;margin:12px 0}
+.original-transcript{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.65}
+#duplicate-scan-results,#similar-search-results{max-height:45dvh;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable;padding-right:8px}
+@media(min-width:741px){
+ main:has(#page-questions.active){padding-bottom:20px}
+ #page-questions.active{display:flex;flex-direction:column;height:calc(100dvh - 118px);min-height:560px}
+ #page-questions>.page-heading,#page-questions>.smart-search,#page-questions>.similar-search{flex:none}
+ #page-questions>.search-layout{flex:1;min-height:240px;grid-template-rows:minmax(0,1fr);align-items:stretch}
+ #page-questions .filter-panel,#page-questions .result-area{height:100%;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+ #page-questions .filter-panel .topic-selector{max-height:none;overflow:visible}
+ #page-questions .result-area{padding:0 8px 12px 2px}
+ #page-questions .result-toolbar{position:sticky;top:0;z-index:2;background:#f5f7f6;padding:8px 3px 14px;margin:0}
+}
+#page-questions .filter-panel .keyword-select-list{position:static;max-height:min(280px,35dvh);margin-top:6px}
+.result-navigation{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#f5f7f6;padding:6px 2px 10px}
+.pagination-top{justify-content:flex-start;gap:6px;flex-wrap:wrap;margin:0}
+.pagination-top form{display:flex;align-items:center;gap:6px}.pagination-top input{width:58px;padding:6px}.pagination-top button{padding:7px 9px}
+#page-questions .result-toolbar{position:static}
+.editor-save-status{margin-right:auto;align-self:center;font-size:12px;color:#287365}
+.editor-dialog:has(>form){overflow:hidden}
+.editor-dialog>form{display:flex;flex-direction:column;max-height:min(90dvh,900px)}
+.editor-dialog>form>.dialog-body{flex:1;min-height:0;max-height:none}
+.editor-dialog>form>.dialog-head,.editor-dialog>form>.dialog-footer{flex-shrink:0}
+@media(max-width:740px){
+ #page-questions .filter-panel{max-height:50dvh;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+ #page-questions .result-area{max-height:75dvh;overflow-y:auto;overscroll-behavior-y:contain;scrollbar-gutter:stable}
+}
