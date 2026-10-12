@@ -60,16 +60,39 @@ export function normalizeAnswerBlankFormula(value) {
   return String(value ?? '').replace(emptyUnderline, () => ANSWER_BLANK_TEX);
 }
 export function normalizeAnswerBlanks(value) {
-  const text=String(value??'');let result='',end=0;
+  // A blank alone is an inline answer slot, even if the transcription used
+  // display delimiters. Handle it before tokenizing: $x=$$$blank$$ contains a
+  // closing inline dollar immediately followed by the opening display pair.
+  const blank=String.raw`(?:\\displaystyle\s*)?(${emptyUnderline.source})`;
+  const displayBlank=new RegExp(String.raw`(?:\$\$\s*${blank}\s*\$\$|\\\[\s*${blank}\s*\\\])`,'g');
+  const text=String(value??'').replace(displayBlank,()=>` $${ANSWER_BLANK_TEX}$ `)
+    .replace(new RegExp(String.raw`\s*\$${ANSWER_BLANK_TEX.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\$\s*`,'g'),
+      ()=>` $${ANSWER_BLANK_TEX}$ `);
+  let result='',end=0;
+  const append=part=>{
+    // Inserting $blank$ between two existing inline tokens must not accidentally
+    // manufacture a $$ display boundary. Keep those tokens separate.
+    if(result.endsWith('$')&&part.startsWith('$'))result+=' ';
+    result+=part;
+  };
   const prose=part=>part.replace(emptyUnderline,()=>`$${ANSWER_BLANK_TEX}$`)
     .replace(/\$[^$]*\$|(?<![\\\w])(?:_{2,}|[＿﹍﹎]{2,})(?!\w)/g, token=>token.startsWith('$')?token:`$${ANSWER_BLANK_TEX}$`);
   for(const match of text.matchAll(mathPattern)){
-    result+=prose(text.slice(end,match.index));
+    append(prose(text.slice(end,match.index)));
     const width=match[0].startsWith('$$')||match[0].startsWith('\\')?2:1;
-    result+=match[0].slice(0,width)+normalizeAnswerBlankFormula(match[0].slice(width,-width))+match[0].slice(-width);
+    append(match[0].slice(0,width)+normalizeAnswerBlankFormula(match[0].slice(width,-width))+match[0].slice(-width));
     end=match.index+match[0].length;
   }
-  return result+prose(text.slice(end));
+  append(prose(text.slice(end)));
+  return result.replace(/(\$) +(?=[.;；。])/g,'$1');
+}
+// Display punctuation has its own boundary: never touch a semicolon inside a
+// formula, the source-verbatim field, or an intermediate subquestion.
+export function normalizeQuestionPresentation(value) {
+  const text=normalizeAnswerBlanks(value).trim(),tail=text.search(/[;；]\s*$/);
+  if(tail<0)return text;
+  if([...text.matchAll(mathPattern)].some(match=>tail>=match.index&&tail<match.index+match[0].length))return text;
+  return text.slice(0,tail)+'.';
 }
 export const ANSWER_PLACEHOLDER_RULES='展示选择题用一个固定大小空括号，内宽1em，紧接题干，不用left/right放大，不带答或点线。展示填空横线统一3em；原件逐字字段仍按原卷保留原样。下标、变量名下划线和有数学内容的underline不得误改为填空。';
 export const PARALLEL_RENDER_MACROS = Object.freeze({ '\\parallel': '\\mathrel{//}' });

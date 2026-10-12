@@ -1,12 +1,15 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
 import { rankSimilar } from './similarity.js';
-import { normalizeMathText, emphasizeSolutionLabels, alignRenderedSystems } from './math-presentation.mjs';
+import { normalizeMathText, normalizeQuestionPresentation, emphasizeSolutionLabels, alignRenderedSystems, PARALLEL_RENDER_MACROS } from './math-presentation.mjs';
+import {renderChoiceOptionsHtml,renderMathProse,adaptMathLayout,MATH_LAYOUT_CSS} from './math-layout.mjs';
+import {typesetMathNumbers} from './math-typography.mjs';
 import { radians, horizontalComparisons } from './angle-format.mjs';
 import { renderLatexBlocksHtml, renderLatexTextHtml, splitLatexParagraphs } from './latex-structures.mjs';
 import { choiceStemPresentation, choiceBlanksHtml } from './choice-format.mjs';
 import { questionOriginLabels, questionOriginMetadata } from './question-origins.mjs';
 
 const $ = selector => document.querySelector(selector);
+const mathStyle=document.createElement('style');mathStyle.textContent=MATH_LAYOUT_CSS;document.head.append(mathStyle);
 let data = { topics: [], sources: [], questions: [], options: {} };
 let sourceById = new Map();
 function shareQuestionOrigins(question) {
@@ -33,15 +36,17 @@ function stripDisplayedQuestionNumber(value, number) {
 }
 
 function displayMathText(value, question = false, choice = false, solution = false, styledContent = false) {
-  value = normalizeMathText(value);
+  if(question)value=normalizeQuestionPresentation(value);
+  value = normalizeMathText(typesetMathNumbers(value));
   if (solution && !styledContent) value = emphasizeSolutionLabels(value);
+  if(choice){const options=renderChoiceOptionsHtml(value,text=>displayMathText(text,question,false,solution,styledContent),escapeHtml);if(options!==null)return options;}
   const structured = renderLatexBlocksHtml(value, text => displayMathText(text, question, choice, solution));
   if (structured !== null) return structured;
   const styled = renderLatexTextHtml(value, text => displayMathText(text, question, choice, solution, true));
   if (styled !== null) return styled;
-  let text = horizontalComparisons(radians(value)).replace(/[，。；：！？（）【】、“”‘’]/g, mark => ({
+  let text = horizontalComparisons(radians(value)).replace(/[，。；：！？（）【】“”‘’]/g, mark => ({
     '，': ',', '。': '.', '；': ';', '：': ':', '！': '!', '？': '?',
-    '（': '(', '）': ')', '【': '[', '】': ']', '、': ',',
+    '（': '(', '）': ')', '【': '[', '】': ']',
     '“': '"', '”': '"', '‘': "'", '’': "'"
   })[mark]);
   text = text.replace(/([,;:!?])(?=[\p{L}\p{N}$])/gu, '$1 ')
@@ -72,7 +77,10 @@ const stripTikz = value => String(value || '').replace(/\\begin\{tikzpicture\}(?
 function renderMath(root) {
   if (typeof window.renderMathInElement !== 'function') return;
   for (const node of root.querySelectorAll('.card-stem, .latex-content, .similar-item strong')) {
+    const ancestor=node.parentElement.closest('.card-stem, .latex-content, .similar-item strong');
+    if(ancestor&&root.contains(ancestor))continue;
     window.renderMathInElement(node, {
+      macros:{...PARALLEL_RENDER_MACROS},
       delimiters: [
         { left: '$$', right: '$$', display: true },
         { left: '\\[', right: '\\]', display: true },
@@ -82,6 +90,7 @@ function renderMath(root) {
     });
   }
   alignRenderedSystems(root);
+  adaptMathLayout(root);
 }
 
 function optionList(selector, items, label, getValue = item => item, getLabel = item => item) {
@@ -220,7 +229,7 @@ function search(page = 1) {
     const source = sourceById.get(question.sourceId) || {};
     const stem = stripDisplayedQuestionNumber(question.tikzRenderFailed ? String(question.stemLatex || '') : stripTikz(question.stemLatex), question.questionNumber).replace(/\s+/g, ' ').trim();
     const topicsText = question.topicIds.map(id => topicById.get(id)?.name).filter(Boolean).join('、');
-    return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${shareOriginLabels(question).map(escapeHtml).join('<br>')}</span></div><div class="card-stem">${escapeHtml(stem.length > 210 ? `${stem.slice(0, 210)}…` : stem)}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">估计 ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}%`}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
+    return `<button class="question-card" type="button" data-question-id="${escapeHtml(question.id)}"><div class="card-top"><span class="source-chip">${escapeHtml(source.category || '未关联来源')}</span><span class="card-source">${shareOriginLabels(question).map(escapeHtml).join('<br>')}</span></div><div class="card-stem">${displayMathText(stem,true,/选择|单选|多选/.test(question.questionType))}</div><div class="card-footer"><span>${escapeHtml(topicsText || '未标考点')}</span><span class="difficulty-pill difficulty-${question.difficulty}">估计 ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}%`}</span><span>${escapeHtml(question.questionType)}</span></div></button>`;
   }).join('') : `<div class="empty-state"><div class="empty-icon">∅</div><h2>${data.questions.length ? '没有找到符合条件的题目' : '题库暂时没有已发布题目'}</h2><p>${data.questions.length ? '试试放宽年份、难度或考点条件。' : '老师录入并校对题目后，这里会自动显示。'}</p></div>`;
   $('#pagination').innerHTML = maxPage > 1 ? `<button type="button" data-page="${currentPage - 1}" ${currentPage === 1 ? 'disabled' : ''}>上一页</button><span>第 ${currentPage} / ${maxPage} 页</span><button type="button" data-page="${currentPage + 1}" ${currentPage === maxPage ? 'disabled' : ''}>下一页</button>` : '';
   renderMath($('#question-list'));
@@ -238,11 +247,11 @@ function detailSection(title, value, empty = '尚未填写', question = false, c
 function displaySolutionText(value) {
   const source = String(value ?? '').trim();
   const markers = [...source.matchAll(/(?:^|\n)\s*[（(]([1-9]\d*)[）)]\s*/g)];
-  if (!markers.length || markers[0].index !== 0) return displayMathText(source, false, false, true).replace(/\n{2,}/g, '\n').trim();
+  if (!markers.length || markers[0].index !== 0) return renderMathProse(source,text=>displayMathText(text,false,false,true));
   return markers.map((marker, index) => {
     const start = marker.index + marker[0].length;
     const end = index + 1 < markers.length ? markers[index + 1].index : source.length;
-    return `<section class="solution-subquestion"><h4>第 ${escapeHtml(marker[1])} 问</h4><div>${displayMathText(source.slice(start, end).trim(), false, false, true).replace(/\n{2,}/g, '\n')}</div></section>`;
+    return `<section class="solution-subquestion"><h4>第 ${escapeHtml(marker[1])} 问</h4>${renderMathProse(source.slice(start,end),text=>displayMathText(text,false,false,true))}</section>`;
   }).join('');
 }
 
@@ -278,7 +287,9 @@ function openDetail(id) {
   selectedQuestion = question;
   const source = sourceById.get(question.sourceId) || {};
   const tags = question.topicIds.map(topicId => topicById.get(topicId)?.name).filter(Boolean);
-  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml([question.questionYear || source.examYear, question.paperTitle || source.title || '未关联来源', question.questionNumber].filter(Boolean).join(' · '))}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>估计难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}% · ${escapeHtml(question.performance.cohort)} · ${escapeHtml(question.performance.source)}`}</span></div><section class="detail-section question-origins"><h3>本题全部出处（${shareOriginLabels(question).length} 份）</h3>${shareOriginLabels(question).map(label => `<p>${escapeHtml(label)}</p>`).join('')}</section>${detailSection('题干', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex), '尚未填写', true, ['单选题', '选择题', '多选题'].includes(question.questionType))}${imageFigures(question)}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div><section class="detail-section official-solution"><h3>${escapeHtml(question.referenceHeading || '参考答案与官方解析')}</h3><div class="solution-part"><b>参考答案</b><div class="latex-content">${question.answerLatex || question.officialAnswer ? displayMathText(question.officialAnswer || question.answerLatex) : '<span class="muted">暂未录入</span>'}</div></div><div class="solution-part"><b>官方解析</b><div class="latex-content">${question.officialSolution ? displayMathText(question.officialSolution, false, false, true) : question.referenceHasErrata ? '<span class="muted">详细推导见下方解析</span>' : '<span class="muted">原件未提供官方解析</span>'}</div></div>${solutionImageFigures(question, 'official')}</section>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('解析', question.aiSolution, '尚未录入解析', false, false, true)}${solutionImageFigures(question, 'ai')}<div id="similar-results"></div>`;
+  const originLabels=shareOriginLabels(question);
+  const originSection=originLabels.length>1?`<section class="detail-section question-origins"><h3>本题全部出处（${originLabels.length} 份）</h3>${originLabels.map(label=>`<p>${escapeHtml(label)}</p>`).join('')}</section>`:'';
+  $('#detail-body').innerHTML = `<div class="detail-meta"><span class="source-chip">${escapeHtml(source.category || '个人录入')}</span><span>${escapeHtml(originLabels[0]||'未关联来源')}</span><span>${escapeHtml([source.region, source.schoolTier, source.school].filter(Boolean).join(' · '))}</span><span>估计难度 ${question.difficulty} · ${DIFFICULTY[question.difficulty - 1]}</span><span>${question.performance?.rate == null ? '实测待补' : `${question.performance.kind === 'score' ? '平均得分率' : '正确率'} ${escapeHtml(question.performance.rate)}% · ${escapeHtml(question.performance.cohort)} · ${escapeHtml(question.performance.source)}`}</span></div>${originSection}${detailSection('题干', question.tikzRenderFailed ? question.stemLatex : stripTikz(question.stemLatex), '尚未填写', true, ['单选题', '选择题', '多选题'].includes(question.questionType))}${imageFigures(question)}${(question.tikzUrls || []).map(url => `<figure class="question-asset"><img src="${escapeHtml(url)}" alt="TikZ 几何图" loading="lazy"></figure>`).join('')}<div class="detail-tags">${tags.length ? tags.map(tag => `<span>${escapeHtml(tag)}</span>`).join('') : '<span>未标考点</span>'}</div><section class="detail-section official-solution"><h3>${escapeHtml(question.referenceHeading || '参考答案与官方解析')}</h3><div class="solution-part"><b>参考答案</b><div class="latex-content">${question.answerLatex || question.officialAnswer ? displayMathText(question.officialAnswer || question.answerLatex) : '<span class="muted">暂未录入</span>'}</div></div><div class="solution-part"><b>官方解析</b><div class="latex-content">${question.officialSolution ? displaySolutionText(question.officialSolution) : question.referenceHasErrata ? '<span class="muted">详细推导见下方解析</span>' : '<span class="muted">原件未提供官方解析</span>'}</div></div>${solutionImageFigures(question, 'official')}</section>${question.officialSource ? `<p class="solution-source">解答出处：${escapeHtml(question.officialSource)}</p>` : ''}${detailSection('解析', question.aiSolution, '尚未录入解析', false, false, true)}${solutionImageFigures(question, 'ai')}<div id="similar-results"></div>`;
   renderMath($('#detail-body'));
   if (!$('#detail-dialog').open) $('#detail-dialog').showModal();
 }
