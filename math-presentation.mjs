@@ -1,9 +1,76 @@
 // Output formatting only. Never alter archived question/reference text.
-import {normalizeNumberSetFormula,numberSetFontContext,NUMBER_SET_FONT_RULE} from './number-set-font.mjs';
+// Number domains use blackboard bold capitals in every display/export path.
+// Keep an explicitly named set or matrix distinct from a number domain.
+const letters = 'NQZRC';
+const styled = /\\(mathbb|mathbf|mathrm|mathsf|mathit|boldsymbol)\s*(?:\{\s*([NQZRC])\s*\}|([NQZRC])(?![A-Za-z]))/g;
+const doubleStruck = Object.freeze({'ℕ':'N','ℚ':'Q','ℤ':'Z','ℝ':'R','ℂ':'C'});
+
+export function numberSetFontContext(value) {
+ const text=String(value??''),protectedStyles=new Set(),protectedBare=new Set(),domainBare=new Set();
+ for(const letter of letters){
+  const token=String.raw`\\(mathbb|mathbf|mathrm|mathsf|mathit|boldsymbol)\s*(?:\{\s*${letter}\s*\}|${letter}(?![A-Za-z]))`;
+  for(const match of text.matchAll(new RegExp(token+String.raw`\s*(?:=|\\coloneqq)`,'g')))
+   protectedStyles.add(`${match[1]}:${letter}`);
+  for(const match of text.matchAll(new RegExp(String.raw`(?:点|向量|矩阵|半径|参数|常数|设集合|定义集合)\s*\$?\s*`+token,'g')))
+   protectedStyles.add(`${match[1]}:${letter}`);
+  // An explicitly defined R/N/etc. is a named variable, set, matrix or point.
+  // It must remain distinct from the standard number domain with the same letter.
+  if(new RegExp(String.raw`(?<![A-Za-z\\])${letter}\s*(?:=|\\coloneqq)(?!=)`).test(text)||
+   new RegExp(String.raw`(?:点|向量|矩阵|半径|参数|常数|集合)\s*\$?\s*${letter}(?![A-Za-z])`).test(text))
+   protectedBare.add(letter);
+  if(new RegExp(String.raw`(?:定义域|值域|实数集|自然数集|整数集|有理数集|复数集|全体实数|全体自然数|全体整数|全体有理数|全体复数)[^。;；\n]{0,20}?\$\s*${letter}\s*\$`).test(text))
+   domainBare.add(letter);
+ }
+ return {protectedStyles,protectedBare,domainBare};
+}
+
+export function normalizeNumberSetFormula(value,context=numberSetFontContext(value)) {
+ let text=String(value??'').replace(styled,(token,style,braced,single)=>{
+  const letter=braced||single;
+  return context.protectedStyles.has(`${style}:${letter}`)?token:`\\mathbb{${letter}}`;
+ }).replace(/[ℕℚℤℝℂ]/g,symbol=>`\\mathbb{${doubleStruck[symbol]}}`);
+ // Protect TeX commands and their styled/text arguments. Convert bare letters
+ // only when the notation or surrounding prose identifies a number domain.
+ text=text.replace(/\\(?:[A-Za-z]+|.)|[NQZRC](?![A-Za-z])/g,(token,at,source)=>{
+  if(token.startsWith('\\')||/[A-Za-z]/.test(source[at-1]||''))return token;
+  if(context.protectedBare?.has(token))return token;
+  const prefix=source.slice(0,at);
+  if(/\\(?:mathbb|mathbf|mathrm|mathsf|mathit|boldsymbol|text|mbox|vec|overrightarrow)\s*\{?\s*$/.test(prefix))return token;
+  const relation=/\\(?:in|notin|subset|subseteq|subsetneq|supset|supseteq|supsetneq)\s*(?:\{\s*)?$/.test(prefix);
+  const standalone=source.trim()===token;
+  if(relation||(standalone&&context.domainBare?.has(token)))return `\\mathbb{${token}}`;
+  return token;
+ });
+ return text;
+}
+
+export const NUMBER_SET_FONT_RULE=String.raw`自然数集、整数集、有理数集、实数集、复数集统一使用黑板粗体数集符号 \mathbb{N}、\mathbb{Z}、\mathbb{Q}、\mathbb{R}、\mathbb{C}，不使用普通斜体、正体或实心粗体代替。星号、正负号及上标保持原含义。自行定义的集合、矩阵、点或其他同名字母保持区别，不得因数集排版规则改变数学含义。数学公式中的逗号、括号、关系符号与条件分隔使用对应的规范TeX写法，不以文字引号或排版空白代替数学符号。`;
+
+export const ANSWER_BLANK_WIDTH_EM = 3;
+export const ANSWER_BLANK_TEX = String.raw`\underline{\hspace{3em}}`;
+export const CHOICE_BLANK_TEXT = '(　)';
+export const CHOICE_BLANK_WIDTH_EM = 1;
+const emptyUnderline = /\\underline\{(?:\s|\\(?:quad|qquad|enspace|thinspace|space)\b|\\[,;! ]|\\hspace\*?\{\s*\d*\.?\d+\s*(?:em|ex|cm|mm|pt)\s*\}|[_＿﹍﹎])+\}/g;
+export function normalizeAnswerBlankFormula(value) {
+  return String(value ?? '').replace(emptyUnderline, () => ANSWER_BLANK_TEX);
+}
+export function normalizeAnswerBlanks(value) {
+  const text=String(value??'');let result='',end=0;
+  const prose=part=>part.replace(emptyUnderline,()=>`$${ANSWER_BLANK_TEX}$`)
+    .replace(/\$[^$]*\$|(?<![\\\w])(?:_{2,}|[＿﹍﹎]{2,})(?!\w)/g, token=>token.startsWith('$')?token:`$${ANSWER_BLANK_TEX}$`);
+  for(const match of text.matchAll(mathPattern)){
+    result+=prose(text.slice(end,match.index));
+    const width=match[0].startsWith('$$')||match[0].startsWith('\\')?2:1;
+    result+=match[0].slice(0,width)+normalizeAnswerBlankFormula(match[0].slice(width,-width))+match[0].slice(-width);
+    end=match.index+match[0].length;
+  }
+  return result+prose(text.slice(end));
+}
+export const ANSWER_PLACEHOLDER_RULES='展示选择题用一个固定大小空括号，内宽1em，紧接题干，不用left/right放大，不带答或点线。展示填空横线统一3em；原件逐字字段仍按原卷保留原样。下标、变量名下划线和有数学内容的underline不得误改为填空。';
 export const PARALLEL_RENDER_MACROS = Object.freeze({ '\\parallel': '\\mathrel{//}' });
 export const PARALLEL_TEX_PREAMBLE = String.raw`\renewcommand{\parallel}{\mathrel{//}}`;
 export const SOLUTION_FORMAT_RULES = String.raw`解析排版：绝对值使用明确的 \lvert ...\rvert 边界，不用普通字母竖线，不在边界内添加 \quad、\qquad 或空白占位。条件概率与整除用 \mid，不混同绝对值。分析、详解、点睛、解法等短标签使用 \textbf{...}；不写Markdown的#标题。方程组各行左对齐，使用 cases 或左列 array{l}，不使用居中列 array{c}。按原题各小问独立分段，正文完整，避免空行占位。无穷与空集符号使用正体 \infty、\emptyset，不使用斜体字形。指数、下标中的分数使用 \frac，不使用 \dfrac 或 \displaystyle 撑大脚标。结论正常写入公式，不使用 \boxed、\fbox 或方框强调答案。`;
-export const MATH_FONT_RULES='题干、选项、解析中的数学数字和表达式均使用LaTeX公式包裹，包括0、8、18等纯数值选项；不把分数之外的整数留作正文文字。题号、小问编号、年份、分值等版面元数据保留正常文本。'+NUMBER_SET_FONT_RULE;
+export const MATH_FONT_RULES='题干、选项、解析中的数学数字和表达式均使用LaTeX公式包裹，包括0、8、18等纯数值选项；不把分数之外的整数留作正文文字。题号、小问编号、年份、分值等版面元数据保留正常文本。'+NUMBER_SET_FONT_RULE+ANSWER_PLACEHOLDER_RULES;
 const mathPattern = /(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<![\\$])\$(?!\$)[^$]*?(?<!\\)\$(?!\$)|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)/g;
 function endGroup(text, start) {
   if (text[start] !== '{') return start;
@@ -44,7 +111,7 @@ export function unboxSolutionText(value) {
   });
 }
 export function normalizeFormula(value, numberSetContext) {
-  let text = compactScriptFractions(normalizeNumberSetFormula(value, numberSetContext))
+  let text = compactScriptFractions(normalizeNumberSetFormula(normalizeAnswerBlankFormula(value), numberSetContext))
     .replace(/\\(?:varnothing|nothing)(?![A-Za-z])/g, '\\emptyset')
     .replace(/\\(?:mathit|mathsl)\s*\{\s*(\\(?:infty|emptyset)|[∞∅])\s*\}/g, '$1')
     .replace(/\\left\s*\|(?=[^|])/g, '\\left\\lvert ')
@@ -99,7 +166,7 @@ export function normalizeFormula(value, numberSetContext) {
   return text;
 }
 export function normalizeMathText(value, context=numberSetFontContext(value)) {
-  return String(value ?? '').replace(mathPattern, token => {
+  return normalizeAnswerBlanks(value).replace(mathPattern, token => {
     const width = token.startsWith('$$') || token.startsWith('\\') ? 2 : 1;
     return token.slice(0, width) + normalizeFormula(token.slice(width, -width),context) + token.slice(-width);
   });

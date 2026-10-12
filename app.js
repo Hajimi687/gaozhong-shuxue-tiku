@@ -3,7 +3,7 @@ import { rankSimilar } from './similarity.js';
 import { normalizeMathText, emphasizeSolutionLabels, alignRenderedSystems } from './math-presentation.mjs';
 import { radians, horizontalComparisons } from './angle-format.mjs';
 import { renderLatexBlocksHtml, renderLatexTextHtml, splitLatexParagraphs } from './latex-structures.mjs';
-import { choiceStemPresentation } from './choice-format.mjs';
+import { choiceStemPresentation, choiceBlanksHtml } from './choice-format.mjs';
 import { questionOriginLabels, questionOriginMetadata } from './question-origins.mjs';
 
 const $ = selector => document.querySelector(selector);
@@ -64,7 +64,7 @@ function displayMathText(value, question = false, choice = false, solution = fal
     `$\\displaystyle ${formula.trim().replace(/^\\displaystyle\s*/, '')}$`)
     .replace(/\\\(([^\r\n]+?)\\\)/g, (_, formula) =>
       `\\(\\displaystyle ${formula.trim().replace(/^\\displaystyle\s*/, '')}\\)`);
-  return escapeHtml(solution ? text.replace(/\n{2,}/g, '\n').trim() : text);
+  return choiceBlanksHtml(escapeHtml(solution ? text.replace(/\n{2,}/g, '\n').trim() : text));
 }
 
 const stripTikz = value => String(value || '').replace(/\\begin\{tikzpicture\}(?:\[[^\]]*\])?[\s\S]*?\\end\{tikzpicture\}/g, '').trim();
