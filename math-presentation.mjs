@@ -25,8 +25,13 @@ export function numberSetFontContext(value) {
 }
 
 export function normalizeNumberSetFormula(value,context=numberSetFontContext(value)) {
- let text=String(value??'').replace(styled,(token,style,braced,single)=>{
+ let text=String(value??'').replace(styled,(token,style,braced,single,at,source)=>{
   const letter=braced||single;
+  // C with both an upper and lower index is combinatorial notation, not the
+  // complex number domain. The source wording and underlying indices remain.
+  const script=String.raw`\s*(?:\{[^{}]*\}|[^\s{}])`;
+  if(letter==='C'&&new RegExp('^\\s*(?:_'+script+'\\s*\\^'+script+'|\\^'+script+'\\s*_'+script+')').test(source.slice(at+token.length)))
+   return style==='mathbb'?'C':token;
   return context.protectedStyles.has(`${style}:${letter}`)?token:`\\mathbb{${letter}}`;
  }).replace(/[ℕℚℤℝℂ]/g,symbol=>`\\mathbb{${doubleStruck[symbol]}}`);
  // Protect TeX commands and their styled/text arguments. Convert bare letters
