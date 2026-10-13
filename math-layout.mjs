@@ -7,7 +7,8 @@ export const MATH_LAYOUT_CSS=String.raw`
 .choice-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55em 1.6em;margin:.65em 0 .3em;white-space:normal}
 .choice-options.choice-long,.choice-options.choice-fit-single{grid-template-columns:minmax(0,1fr)}
 .choice-option{display:flex;align-items:center;gap:.45em;min-width:0;min-height:2.1em;line-height:var(--math-prose-leading,1.75);break-inside:avoid}
-.choice-label{flex:none;white-space:nowrap}.choice-content{min-width:0;max-width:100%;overflow-wrap:anywhere;overflow-x:auto;overscroll-behavior-x:contain;padding:.14em 0}
+.choice-label{flex:none;white-space:nowrap}.choice-content{flex:1 1 0;min-width:0;max-width:100%;overflow-wrap:anywhere;overflow:visible;padding:.14em 0}
+.choice-content.choice-content-overflow{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain}
 .math-expression-scroll{display:inline-block;max-width:100%;overflow-x:auto;overflow-y:hidden;vertical-align:middle;overscroll-behavior-x:contain;padding:.16em 0;box-sizing:border-box}
 .math-expression-scroll>.katex{display:inline-block}
 .card-stem,.stem-paragraph,.math-prose-row{padding-inline-end:.2em;box-sizing:border-box}
@@ -25,12 +26,21 @@ export const MATH_LAYOUT_CSS=String.raw`
 const widths=new WeakMap();
 const watched=new Set();
 let observer;
+function choiceOverflows(content){
+ const edge=content.getBoundingClientRect().right;
+ return content.scrollWidth>content.clientWidth+1||[...content.querySelectorAll('.katex-html')].some(math=>math.getBoundingClientRect().right>edge+1);
+}
 function fitChoices(grid){
  if(!grid.isConnected||!grid.clientWidth)return;
+ const contents=[...grid.querySelectorAll('.choice-content')];
+ for(const content of contents)content.classList.remove('choice-content-overflow');
  grid.classList.remove('choice-fit-single');
  if(!grid.classList.contains('choice-long')&&getComputedStyle(grid).gridTemplateColumns.split(' ').length>1&&
-   [...grid.querySelectorAll('.choice-content')].some(content=>content.scrollWidth>content.clientWidth+1))
+   contents.some(choiceOverflows))
   grid.classList.add('choice-fit-single');
+ // A fitting fraction needs its natural height and the whole option column.
+ // Enable horizontal scrolling only after the full-row fallback still cannot fit.
+ for(const content of contents)content.classList.toggle('choice-content-overflow',choiceOverflows(content));
 }
 // Source character counts cannot predict TeX widths. Measure after KaTeX and
 // fonts are ready; observe only width changes so taller formulas never cause a
