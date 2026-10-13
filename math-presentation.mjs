@@ -5,6 +5,107 @@ const letters = 'NQZRC';
 const styled = /\\(mathbb|mathbf|mathrm|mathsf|mathit|boldsymbol)\s*(?:\{\s*([NQZRC])\s*\}|([NQZRC])(?![A-Za-z]))/g;
 const doubleStruck = Object.freeze({'ℕ':'N','ℚ':'Q','ℤ':'Z','ℝ':'R','ℂ':'C'});
 
+// Display prose and mathematics share ASCII punctuation, while TeX retains
+// its own math-mode punctuation glyphs and spacing. Never rewrite a control
+// symbol (\\, and \\; are spacing commands), a source identifier, or drawing.
+const academicPunctuation = Object.freeze({ '、': ',', '，': ',', '。': '.', '．': '.',
+  '；': ';', '：': ':', '！': '!', '？': '?', '（': '(', '）': ')',
+  '【': '[', '】': ']', '“': '"', '”': '"', '‘': "'", '’': "'" });
+const punctuationOpaqueArguments = new Set(['url','path','label','ref','eqref','pageref',
+  'cite','citep','citet','includegraphics','input','include','bibliography','bibliographystyle','index','href']);
+const punctuationTextArguments = new Set(['text','mbox','textbf','textit','textnormal','emph']);
+const punctuationOpaqueEnvironments = new Set(['verbatim','Verbatim','lstlisting','minted','tikzpicture']);
+
+function punctuationGroupEnd(text,start,open='{',close='}') {
+  let depth=1;
+  for(let at=start+1;at<text.length;at++) {
+    if(text[at]==='\\'){at++;continue;}
+    if(text[at]===open)depth++;
+    else if(text[at]===close&&!--depth)return at+1;
+  }
+  return -1;
+}
+
+function punctuationSegment(text,math) {
+  let output='';
+  for(let at=0;at<text.length;) {
+    // URL punctuation and TeX source keys are data, rather than sentence
+    // punctuation. A display-only rule must not change where they point.
+    const url=text.slice(at).match(/^(?:https?:\/\/|www\.)[^\s<>"$]+/);
+    if(url){output+=url[0];at+=url[0].length;continue;}
+    if(text[at]==='%') {
+      const stop=text.indexOf('\n',at);
+      output+=text.slice(at,stop<0?text.length:stop);at=stop<0?text.length:stop;continue;
+    }
+    if(text[at]==='\\') {
+      const command=text.slice(at).match(/^\\(?:[A-Za-z]+|[^\r\n])/u)?.[0]||'\\';
+      if(!math&&(command==='\\('||command==='\\[')) {
+        const close=command==='\\('? '\\)': '\\]';
+        let stop=at+2;
+        for(;(stop=text.indexOf(close,stop))>=0&&text[stop-1]==='\\';stop+=2){}
+        if(stop>=0){output+=command+punctuationSegment(text.slice(at+2,stop),true)+close;at=stop+2;continue;}
+      }
+      const name=command.slice(1);
+      let after=at+command.length;
+      if(name==='verb') {
+        if(text[after]==='*')after++;
+        const delimiter=text[after],stop=delimiter&&!/\s/.test(delimiter)?text.indexOf(delimiter,after+1):-1;
+        if(stop>=0){output+=text.slice(at,stop+1);at=stop+1;continue;}
+      }
+      if(name==='begin') {
+        const match=text.slice(after).match(/^\s*\{([^{}]+)\}/);
+        if(match&&punctuationOpaqueEnvironments.has(match[1])) {
+          const end=`\\end{${match[1]}}`,stop=text.indexOf(end,after+match[0].length);
+          const finish=stop<0?text.length:stop+end.length;
+          output+=text.slice(at,finish);at=finish;continue;
+        }
+      }
+      if(punctuationOpaqueArguments.has(name)) {
+        if(text[after]==='*')after++;
+        let cursor=after;
+        for(;;) {
+          const next=cursor+(text.slice(cursor).match(/^\s*/)?.[0].length||0);
+          if(text[next]!=='[')break;
+          const stop=punctuationGroupEnd(text,next,'[',']');if(stop<0)break;cursor=stop;
+        }
+        const start=cursor+(text.slice(cursor).match(/^\s*/)?.[0].length||0);
+        if(text[start]==='{') {
+          const stop=punctuationGroupEnd(text,start);
+          if(stop>=0){output+=text.slice(at,stop);at=stop;continue;}
+        }
+      }
+      if(punctuationTextArguments.has(name)) {
+        const start=after+(text.slice(after).match(/^\s*/)?.[0].length||0);
+        if(text[start]==='{') {
+          const stop=punctuationGroupEnd(text,start);
+          if(stop>=0){output+=text.slice(at,start+1)+punctuationSegment(text.slice(start+1,stop-1),false)+'}';at=stop;continue;}
+        }
+      }
+      output+=command;at=after;continue;
+    }
+    if(!math&&text[at]==='$') {
+      const delimiter=text[at+1]==='$'?'$$':'$';
+      let stop=at+delimiter.length;
+      for(;(stop=text.indexOf(delimiter,stop))>=0&&text[stop-1]==='\\';stop+=delimiter.length){}
+      if(stop>=0) {
+        output+=delimiter+punctuationSegment(text.slice(at+delimiter.length,stop),true)+delimiter;
+        at=stop+delimiter.length;continue;
+      }
+    }
+    const char=academicPunctuation[text[at]]||text[at],next=text[at+1]||'';
+    output+=char;
+    if(!math&&(/[,:;!?]/.test(char)&&/[\p{L}\p{N}$]/u.test(next)||
+      char==='.'&&/[\p{L}$]/u.test(next)||char===')'&&/[\u3400-\u9fff]/.test(next)))output+=' ';
+    at++;
+  }
+  return output;
+}
+
+export function normalizeAcademicPunctuation(value,{math=false}={}) {
+  return punctuationSegment(String(value??''),math);
+}
+export const ACADEMIC_PUNCTUATION_RULES=String.raw`展示题干、选项、答案、解析采用英文数学论文常用的ASCII标点: 顿号“、”及中文逗号用逗号 ,; 句号用 .; 冒号、分号、问号、感叹号、圆括号与方括号用对应ASCII形式. 正文标点后留合理空格, 数学逗号及其他数学标点由TeX数学模式排版, 字体字形与正文不同属于正常数学排版, 不强制变成正文字体. 坐标、区间、集合、条件及分段公式中的逗号、分号保留各自含义, 不全部改成句号. 展示填空题和解答题完整题干末尾有合理句末标点, 默认用句点 .; 选择题只在固定作答括号后加句点, 不给每个选项或数学括号添加句点; 实际问句保留问号. TeX控制符、引用键、路径与绘图代码保持语义. originalText、source_verbatim、官方档案和原件仍逐字保留; 规范展示不是漏字或改动数学条件.`;
+
 export function numberSetFontContext(value) {
  const text=String(value??''),protectedStyles=new Set(),protectedBare=new Set(),domainBare=new Set();
  for(const letter of letters){
@@ -75,8 +176,8 @@ export function normalizeAnswerBlanks(value) {
     if(result.endsWith('$')&&part.startsWith('$'))result+=' ';
     result+=part;
   };
-  const prose=part=>part.replace(emptyUnderline,()=>`$${ANSWER_BLANK_TEX}$`)
-    .replace(/\$[^$]*\$|(?<![\\\w])(?:_{2,}|[＿﹍﹎]{2,})(?!\w)/g, token=>token.startsWith('$')?token:`$${ANSWER_BLANK_TEX}$`);
+  const prose=part=>part.replace(emptyUnderline,()=>` $${ANSWER_BLANK_TEX}$ `)
+    .replace(/\$[^$]*\$|(?<![\\\w])(?:_{2,}|[＿﹍﹎]{2,})(?!\w)/g, token=>token.startsWith('$')?token:` $${ANSWER_BLANK_TEX}$ `);
   for(const match of text.matchAll(mathPattern)){
     append(prose(text.slice(end,match.index)));
     const width=match[0].startsWith('$$')||match[0].startsWith('\\')?2:1;
@@ -84,21 +185,27 @@ export function normalizeAnswerBlanks(value) {
     end=match.index+match[0].length;
   }
   append(prose(text.slice(end)));
-  return result.replace(/(\$) +(?=[.;；。])/g,'$1');
+  return result.replace(/(\$) +(?=[.,:;!?，；。])/g,'$1');
 }
-// Display punctuation has its own boundary: never touch a semicolon inside a
-// formula, the source-verbatim field, or an intermediate subquestion.
-export function normalizeQuestionPresentation(value) {
-  const text=normalizeAnswerBlanks(value).trim(),tail=text.search(/[;；]\s*$/);
-  if(tail<0)return text;
-  if([...text.matchAll(mathPattern)].some(match=>tail>=match.index&&tail<match.index+match[0].length))return text;
-  return text.slice(0,tail)+'.';
+// Finalize only the complete question. Rendered paragraphs and individual
+// options pass finalize:false, so a sentence mark is not added to each fragment.
+export function normalizeQuestionPresentation(value,{finalize=true}={}) {
+  let text=normalizeAcademicPunctuation(normalizeAnswerBlanks(value)).trim();
+  const spans=[...text.matchAll(mathPattern)],tail=text.search(/;\s*$/);
+  if(tail>=0&&!spans.some(match=>tail>=match.index&&tail<match.index+match[0].length))text=text.slice(0,tail)+'.';
+  if(!finalize||!text||/[.!?]["']*$/.test(text))return text;
+  const last=spans.at(-1);
+  if(last&&last.index+last[0].length===text.length) {
+    const width=last[0].startsWith('$$')||last[0].startsWith('\\')?2:1;
+    if(/[.!?]\s*$/.test(last[0].slice(width,-width)))return text;
+  }
+  return text+'.';
 }
 export const ANSWER_PLACEHOLDER_RULES='展示选择题用一个固定大小空括号，内宽1em，紧接题干，不用left/right放大，不带答或点线。展示填空横线统一3em；原件逐字字段仍按原卷保留原样。下标、变量名下划线和有数学内容的underline不得误改为填空。';
 export const PARALLEL_RENDER_MACROS = Object.freeze({ '\\parallel': '\\mathrel{//}' });
 export const PARALLEL_TEX_PREAMBLE = String.raw`\renewcommand{\parallel}{\mathrel{//}}`;
-export const SOLUTION_FORMAT_RULES = String.raw`解析排版：绝对值使用明确的 \lvert ...\rvert 边界，不用普通字母竖线，不在边界内添加 \quad、\qquad 或空白占位。条件概率与整除用 \mid，不混同绝对值。分析、详解、点睛、解法等短标签使用 \textbf{...}；不写Markdown的#标题。方程组各行左对齐，使用 cases 或左列 array{l}，不使用居中列 array{c}。按原题各小问独立分段，正文完整，避免空行占位。无穷与空集符号使用正体 \infty、\emptyset，不使用斜体字形。指数、下标中的分数使用 \frac，不使用 \dfrac 或 \displaystyle 撑大脚标。结论正常写入公式，不使用 \boxed、\fbox 或方框强调答案。`;
-export const MATH_FONT_RULES='题干、选项、解析中的数学数字和表达式均使用LaTeX公式包裹，包括0、8、18等纯数值选项；不把分数之外的整数留作正文文字。题号、小问编号、年份、分值等版面元数据保留正常文本。'+NUMBER_SET_FONT_RULE+ANSWER_PLACEHOLDER_RULES;
+export const SOLUTION_FORMAT_RULES = String.raw`解析排版：绝对值使用明确的 \lvert ...\rvert 边界，不用普通字母竖线，不在边界内添加 \quad、\qquad 或空白占位。条件概率与整除用 \mid，不混同绝对值。分析、详解、点睛、解法等短标签使用 \textbf{...}；不写Markdown的#标题。方程组各行左对齐，使用 cases 或左列 array{l}，不使用居中列 array{c}。按原题各小问独立分段，正文完整，避免空行占位。无穷与空集符号使用正体 \infty、\emptyset，不使用斜体字形。指数、下标中的分数使用 \frac，不使用 \dfrac 或 \displaystyle 撑大脚标。结论正常写入公式，不使用 \boxed、\fbox 或方框强调答案。`+ACADEMIC_PUNCTUATION_RULES;
+export const MATH_FONT_RULES='题干、选项、解析中的数学数字和表达式均使用LaTeX公式包裹，包括0、8、18等纯数值选项；不把分数之外的整数留作正文文字。题号、小问编号、年份、分值等版面元数据保留正常文本。'+NUMBER_SET_FONT_RULE+ANSWER_PLACEHOLDER_RULES+ACADEMIC_PUNCTUATION_RULES;
 const mathPattern = /(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<![\\$])\$(?!\$)[^$]*?(?<!\\)\$(?!\$)|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)/g;
 function endGroup(text, start) {
   if (text[start] !== '{') return start;
@@ -138,8 +245,9 @@ export function unboxSolutionText(value) {
     return text;
   });
 }
-export function normalizeFormula(value, numberSetContext) {
-  let text = compactScriptFractions(normalizeNumberSetFormula(normalizeAnswerBlankFormula(value), numberSetContext))
+export function normalizeFormula(value, numberSetContext,{punctuation=true}={}) {
+  const input=punctuation?normalizeAcademicPunctuation(value,{math:true}):value;
+  let text = compactScriptFractions(normalizeNumberSetFormula(normalizeAnswerBlankFormula(input), numberSetContext))
     .replace(/\\(?:varnothing|nothing)(?![A-Za-z])/g, '\\emptyset')
     .replace(/\\(?:mathit|mathsl)\s*\{\s*(\\(?:infty|emptyset)|[∞∅])\s*\}/g, '$1')
     .replace(/\\left\s*\|(?=[^|])/g, '\\left\\lvert ')
@@ -193,10 +301,11 @@ export function normalizeFormula(value, numberSetContext) {
   for (const [at, replacement] of edits.reverse()) text = text.slice(0, at) + replacement + text.slice(at + 1);
   return text;
 }
-export function normalizeMathText(value, context=numberSetFontContext(value)) {
-  return normalizeAnswerBlanks(value).replace(mathPattern, token => {
+export function normalizeMathText(value, context=numberSetFontContext(value),{punctuation=true}={}) {
+  const input=punctuation?normalizeAcademicPunctuation(value):value;
+  return normalizeAnswerBlanks(input).replace(mathPattern, token => {
     const width = token.startsWith('$$') || token.startsWith('\\') ? 2 : 1;
-    return token.slice(0, width) + normalizeFormula(token.slice(width, -width),context) + token.slice(-width);
+    return token.slice(0, width) + normalizeFormula(token.slice(width, -width),context,{punctuation}) + token.slice(-width);
   });
 }
 export function emphasizeSolutionLabels(value) {

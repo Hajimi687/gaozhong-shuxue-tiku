@@ -47,6 +47,7 @@ function emptyPrintedSlot(value) {
 }
 function choiceStemEnding(value) {
   let text=String(value).trimEnd(), previous;
+  let terminal=/[?？]\s*$/u.test(text)?'?':/[!！]\s*$/u.test(text)?'!':'.';
   do {
     previous=text;
     text=stripAnswerMarker(text);
@@ -56,7 +57,7 @@ function choiceStemEnding(value) {
     if(count&&emptyPrintedSlot(count[1]))text=text.slice(0,count.index)+'能够相互垂直的次数为';
     // Only an entire final math token containing an empty answer parenthesis.
     // A formula such as f(0), or a nonempty mathematical interval, stays intact.
-    const final=text.match(/(?:\$([^$\n]+)\$|\\\(([^\n]+?)\\\))\s*[.。]?$/u);
+    const final=text.match(/(?:\$([^$\n]+)\$|\\\(([^\n]+?)\\\))\s*[.。!?？！;；]?$/u);
     if(final){
       const body=(final[1]||final[2]).trim();
       if(emptyAnswerParenthesis(body))text=text.slice(0,final.index).trimEnd();
@@ -71,9 +72,10 @@ function choiceStemEnding(value) {
       }
     }
     text=text
-      .replace(/(?:[（(][\s\u3000]*[）)]|\\(?:hfill|quad|qquad|enspace)\b|\\hspace\*?\{[^{}]*\}|[.…·]{2,}|\s)+[.。]?$/u,'').trimEnd();
+      .replace(/(?:[（(][\s\u3000]*[）)]|\\(?:hfill|quad|qquad|enspace)\b|\\hspace\*?\{[^{}]*\}|[.…·]{2,}|\s)+[.。!?？！;；]?$/u,'').trimEnd();
   }while(text!==previous);
-  return text.trim() ? text.replace(/[.。]$/u,'')+CHOICE_BLANK_TEXT : '';
+  if(terminal==='.')terminal=/[?？]\s*$/u.test(text)?'?':/[!！]\s*$/u.test(text)?'!':'.';
+  return text.trim() ? text.replace(/[.。!?？！;；]$/u,'')+CHOICE_BLANK_TEXT+terminal : '';
 }
 
 export function choiceBlanksForTex(value) {
