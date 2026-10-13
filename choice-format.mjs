@@ -24,23 +24,47 @@ function stripAnswerMarker(value) {
   // Remove only this printed answer marker, never a mathematical option.
   return String(value).replace(/\s*(?:\[|【)\s*答\s*(?:\]|】)?\s*(?:[（(][\s\u3000]*[）)])?\s*(?:\]|】)?\s*[.。]?\s*$/u,'').trimEnd();
 }
+function emptyAnswerParenthesis(value) {
+  let body=String(value).trim().replace(/^\\displaystyle\s*/u,'')
+    .replace(/^(?:\\(?:left|bigl|Bigl)\s*)?\(/u,'(')
+    .replace(/(?:\\(?:right|bigr|Bigr)\s*)?\)$/u,')');
+  if(!body.startsWith('(')||!body.endsWith(')'))return false;
+  body=body.slice(1,-1).replace(/\\hspace\*?\{[^{}]*\}|\\(?:quad|qquad|enspace|thinspace)\b/gu,'');
+  // Grouped spacing is still empty, but an unbalanced group or any actual
+  // mathematical content must never be treated as an answer slot.
+  let depth=0;
+  for(const character of body){
+    if(character==='{')depth++;
+    else if(character==='}'){if(--depth<0)return false;}
+    else if(!/\s/u.test(character))return false;
+  }
+  return depth===0;
+}
+function emptyPrintedSlot(value) {
+  if(/^[（(][\s\u3000]*[）)]$/u.test(value))return true;
+  const token=value.match(/^\$([^$\n]+)\$$|^\\\(([^\n]+?)\\\)$/u);
+  return Boolean(token&&emptyAnswerParenthesis(token[1]||token[2]));
+}
 function choiceStemEnding(value) {
   let text=String(value).trimEnd(), previous;
   do {
     previous=text;
     text=stripAnswerMarker(text);
+    // This source asks for the count of perpendicular occurrences. Preserve
+    // that meaning while moving its one answer slot to the common position.
+    const count=text.match(/能够相互垂直\s*(\$[^$\n]+\$|\\\([^\n]+?\\\)|[（(][\s\u3000]*[）)])\s*次\s*[.。]?$/u);
+    if(count&&emptyPrintedSlot(count[1]))text=text.slice(0,count.index)+'能够相互垂直的次数为';
     // Only an entire final math token containing an empty answer parenthesis.
     // A formula such as f(0), or a nonempty mathematical interval, stays intact.
     const final=text.match(/(?:\$([^$\n]+)\$|\\\(([^\n]+?)\\\))\s*[.。]?$/u);
     if(final){
       const body=(final[1]||final[2]).trim();
-      const empty=String.raw`(?:\\(?:left|bigl|Bigl)\s*)?\((?:\s|\\(?:quad|qquad|enspace|thinspace)\b|\\hspace\*?\{[^{}]*\})*(?:\\(?:right|bigr|Bigr)\s*)?\)`;
-      if(new RegExp('^(?:\\\\displaystyle\\s*)?'+empty+'$','u').test(body))text=text.slice(0,final.index).trimEnd();
+      if(emptyAnswerParenthesis(body))text=text.slice(0,final.index).trimEnd();
       else{
         // A printed answer slot can be inside the last formula, after = or ∈.
         // Move that slot out of math before appending the shared fixed blank.
-        const embedded=body.match(new RegExp('^([\\s\\S]*(?:=|\\\\(?:in|notin|ne|neq)))\\s*'+empty+'$','u'));
-        if(embedded){
+        const embedded=body.match(/^([\s\S]*(?:=|\\(?:in|notin|ne|neq)))\s*([\s\S]+)$/u);
+        if(embedded&&emptyAnswerParenthesis(embedded[2])){
           const token=final[1]!==undefined?'$'+embedded[1].trimEnd()+'$':'\\('+embedded[1].trimEnd()+'\\)';
           text=text.slice(0,final.index)+token;
         }
