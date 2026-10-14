@@ -24,12 +24,14 @@ function stripAnswerMarker(value) {
   // Remove only this printed answer marker, never a mathematical option.
   return String(value).replace(/\s*(?:\[|【)\s*答\s*(?:\]|】)?\s*(?:[（(][\s\u3000]*[）)])?\s*(?:\]|】)?\s*[.。]?\s*$/u,'').trimEnd();
 }
-function emptyAnswerParenthesis(value) {
+function emptyAnswerParenthesis(value,{requireSpacing=false}={}) {
   let body=String(value).trim().replace(/^\\displaystyle\s*/u,'')
     .replace(/^(?:\\(?:left|bigl|Bigl)\s*)?\(/u,'(')
     .replace(/(?:\\(?:right|bigr|Bigr)\s*)?\)$/u,')');
   if(!body.startsWith('(')||!body.endsWith(')'))return false;
-  body=body.slice(1,-1).replace(/\\hspace\*?\{[^{}]*\}|\\(?:quad|qquad|enspace|thinspace)\b/gu,'');
+  body=body.slice(1,-1);
+  if(requireSpacing&&!/\s|\\(?:hspace|quad|qquad|enspace|thinspace)\b/u.test(body))return false;
+  body=body.replace(/\\hspace\*?\{[^{}]*\}|\\(?:quad|qquad|enspace|thinspace)\b/gu,'');
   // Grouped spacing is still empty, but an unbalanced group or any actual
   // mathematical content must never be treated as an answer slot.
   let depth=0;
@@ -44,6 +46,32 @@ function emptyPrintedSlot(value) {
   if(/^[（(][\s\u3000]*[）)]$/u.test(value))return true;
   const token=value.match(/^\$([^$\n]+)\$$|^\\\(([^\n]+?)\\\)$/u);
   return Boolean(token&&emptyAnswerParenthesis(token[1]||token[2]));
+}
+function terminalMathAnswerPrefix(value) {
+  // A printed slot may directly follow a point/line name, as in AC(hspace).
+  // Inspect only top-level parentheses: an empty nested group is still part
+  // of its enclosing formula, and an unspaced function call such as f() stays.
+  let braces=0,fences=0;
+  for(let at=0;at<value.length;at++){
+    const character=value[at];
+    if(character==='\\'){
+      at+=(value.slice(at).match(/^\\(?:[A-Za-z]+|.)/u)?.[0].length||1)-1;
+      continue;
+    }
+    if(character==='{')braces++;
+    else if(character==='}'){if(--braces<0)return null;}
+    else if(!braces&&character==='('){
+      if(!fences){
+        const prefix=value.slice(0,at),size=prefix.match(/\\(?:left|bigl|Bigl)\s*$/u);
+        const start=at-(size?.[0].length||0),slot=value.slice(start);
+        if(emptyAnswerParenthesis(slot,{requireSpacing:true}))
+          return value.slice(0,start).trimEnd();
+      }
+      fences++;
+    }else if(!braces&&character==='[')fences++;
+    else if(!braces&&')]'.includes(character)){if(--fences<0)return null;}
+  }
+  return null;
 }
 function choiceStemEnding(value) {
   let text=String(value).trimEnd(), previous;
@@ -62,11 +90,14 @@ function choiceStemEnding(value) {
       const body=(final[1]||final[2]).trim();
       if(emptyAnswerParenthesis(body))text=text.slice(0,final.index).trimEnd();
       else{
-        // A printed answer slot can be inside the last formula, after = or ∈.
+        // A printed answer slot can be inside the last formula, after =, ∈,
+        // or the final mathematical name. Keep every nonempty suffix intact.
         // Move that slot out of math before appending the shared fixed blank.
         const embedded=body.match(/^([\s\S]*(?:=|\\(?:in|notin|ne|neq)))\s*([\s\S]+)$/u);
-        if(embedded&&emptyAnswerParenthesis(embedded[2])){
-          const token=final[1]!==undefined?'$'+embedded[1].trimEnd()+'$':'\\('+embedded[1].trimEnd()+'\\)';
+        const prefix=embedded&&emptyAnswerParenthesis(embedded[2])
+          ? embedded[1].trimEnd() : terminalMathAnswerPrefix(body);
+        if(prefix!==null){
+          const token=final[1]!==undefined?'$'+prefix+'$':'\\('+prefix+'\\)';
           text=text.slice(0,final.index)+token;
         }
       }
