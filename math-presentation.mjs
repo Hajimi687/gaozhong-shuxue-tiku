@@ -106,6 +106,29 @@ export function normalizeAcademicPunctuation(value,{math=false}={}) {
 }
 export const ACADEMIC_PUNCTUATION_RULES=String.raw`展示题干、选项、答案、解析采用英文数学论文常用的ASCII标点: 顿号“、”及中文逗号用逗号 ,; 句号用 .; 冒号、分号、问号、感叹号、圆括号与方括号用对应ASCII形式. 正文标点后留合理空格, 数学逗号及其他数学标点由TeX数学模式排版, 字体字形与正文不同属于正常数学排版, 不强制变成正文字体. 坐标、区间、集合、条件及分段公式中的逗号、分号保留各自含义, 不全部改成句号. 展示填空题和解答题完整题干末尾有合理句末标点, 默认用句点 .; 选择题只在固定作答括号后加句点, 不给每个选项或数学括号添加句点; 实际问句保留问号. TeX控制符、引用键、路径与绘图代码保持语义. originalText、source_verbatim、官方档案和原件仍逐字保留; 规范展示不是漏字或改动数学条件.`;
 
+function protectNamedSetLists(text,protectedStyles,protectedBare) {
+ // A declaration may name several sets in one formula or separate inline
+ // formulas. Only follow explicit list separators, never a relation's RHS:
+ // “集合 $P, Q$” names Q, while “集合 $A\\subset Q$” does not.
+ const name=/^(?:\\(mathbb|mathbf|mathrm|mathsf|mathit|boldsymbol)\s*(?:\{\s*([A-Z])\s*\}|([A-Z])(?![A-Za-z]))|([A-Z])(?![A-Za-z]))/;
+ const opening=/^\s*(?:\$\$?|\\\(|\\\[)?\s*/;
+ const separator=/^\s*(?:\$\$?|\\\)|\\\])?\s*[,，、和与及]\s*(?:\$\$?|\\\(|\\\[)?\s*/;
+ for(const declaration of text.matchAll(/集合\s*/g)) {
+  let rest=text.slice(declaration.index+declaration[0].length).replace(opening,'');
+  for(;;) {
+   const match=rest.match(name);if(!match)break;
+   const letter=match[2]||match[3]||match[4];
+   if(letters.includes(letter)) {
+    if(match[1])protectedStyles.add(`${match[1]}:${letter}`);
+    else protectedBare.add(letter);
+   }
+   rest=rest.slice(match[0].length);
+   const next=rest.match(separator);if(!next)break;
+   rest=rest.slice(next[0].length);
+  }
+ }
+}
+
 export function numberSetFontContext(value) {
  const text=String(value??''),protectedStyles=new Set(),protectedBare=new Set(),domainBare=new Set();
  for(const letter of letters){
@@ -122,6 +145,7 @@ export function numberSetFontContext(value) {
   if(new RegExp(String.raw`(?:定义域|值域|实数集|自然数集|整数集|有理数集|复数集|全体实数|全体自然数|全体整数|全体有理数|全体复数)[^。;；\n]{0,20}?\$\s*${letter}\s*\$`).test(text))
    domainBare.add(letter);
  }
+ protectNamedSetLists(text,protectedStyles,protectedBare);
  return {protectedStyles,protectedBare,domainBare};
 }
 
