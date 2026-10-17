@@ -150,8 +150,12 @@ export function numberSetFontContext(value) {
 }
 
 export function normalizeNumberSetFormula(value,context=numberSetFontContext(value)) {
+ const celsiusPrefix=/\^\s*(?:\\circ|\{\s*\\circ\s*\})\s*(?:(?:\\[,!;:]|\\quad|\\qquad|\\enspace|\\thinspace)\s*)*$/;
  let text=String(value??'').replace(styled,(token,style,braced,single,at,source)=>{
   const letter=braced||single;
+  // A C immediately following the degree sign is a Celsius unit. It must
+  // remain upright even when an earlier normalization styled it as a domain.
+  if(letter==='C'&&celsiusPrefix.test(source.slice(0,at)))return '\\mathrm{C}';
   // C with both an upper and lower index is combinatorial notation, not the
   // complex number domain. The source wording and underlying indices remain.
   const script=String.raw`\s*(?:\{[^{}]*\}|[^\s{}])`;
@@ -165,6 +169,7 @@ export function normalizeNumberSetFormula(value,context=numberSetFontContext(val
   if(token.startsWith('\\')||/[A-Za-z]/.test(source[at-1]||''))return token;
   if(context.protectedBare?.has(token))return token;
   const prefix=source.slice(0,at);
+  if(token==='C'&&celsiusPrefix.test(prefix))return '\\mathrm{C}';
   if(/\\(?:mathbb|mathbf|mathrm|mathsf|mathit|boldsymbol|text|mbox|vec|overrightarrow)\s*\{?\s*$/.test(prefix))return token;
   const relation=/\\(?:in|notin|subset|subseteq|subsetneq|supset|supseteq|supsetneq)\s*(?:\{\s*)?$/.test(prefix);
   const standalone=source.trim()===token;

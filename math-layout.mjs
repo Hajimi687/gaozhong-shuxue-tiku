@@ -42,21 +42,32 @@ function fitChoices(grid){
  // Enable horizontal scrolling only after the full-row fallback still cannot fit.
  for(const content of contents)content.classList.toggle('choice-content-overflow',choiceOverflows(content));
 }
+function fitDisplay(block){
+ if(block.isConnected&&block.clientWidth){
+  const fits=block.scrollWidth<=block.clientWidth+1;
+  block.classList.toggle('math-display-fits',fits);
+  block.style.overflowX=fits?'visible':'';
+  block.style.overflowY=fits?'visible':'';
+ }
+}
 // Source character counts cannot predict TeX widths. Measure after KaTeX and
 // fonts are ready; observe only width changes so taller formulas never cause a
 // resize loop or another rendering pass.
 export function adaptMathLayout(root){
  if(typeof window==='undefined')return;
  const grids=[...root.querySelectorAll('.choice-options')];
+ const displays=[...root.querySelectorAll('.katex-display')].filter(block=>!block.closest('.choice-content,.math-expression-scroll'));
  if(!observer&&typeof ResizeObserver!=='undefined')observer=new ResizeObserver(entries=>{
   for(const {target,contentRect} of entries){
    const width=contentRect.width;
    if(widths.get(target)===width)continue;
-   widths.set(target,width);fitChoices(target);
+   widths.set(target,width);
+   if(target.classList.contains('choice-options'))fitChoices(target);else fitDisplay(target);
   }
  });
  for(const grid of watched)if(!grid.isConnected){observer?.unobserve(grid);watched.delete(grid);}
  for(const grid of grids){fitChoices(grid);observer?.observe(grid);watched.add(grid);}
+ for(const block of displays){fitDisplay(block);observer?.observe(block);watched.add(block);}
  const wrapWide=()=>{
   for(const math of root.querySelectorAll('.katex')){
    if(math.closest('.choice-content,.math-expression-scroll')||math.parentElement.classList.contains('katex-display'))continue;
@@ -71,6 +82,7 @@ export function adaptMathLayout(root){
    math.before(wrapper);wrapper.append(math);
   }
   for(const grid of grids)fitChoices(grid);
+  for(const block of displays)fitDisplay(block);
  };
  wrapWide();
  document.fonts?.ready.then(()=>{if(root.isConnected)wrapWide();});
