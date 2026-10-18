@@ -1,6 +1,6 @@
 import { PROVINCE_NAMES, canonicalExamType, canonicalRegion, parseSearchIntent } from './search-intent.js';
 import { rankSimilar } from './similarity.js';
-import { normalizeMathText, normalizeQuestionPresentation, normalizeAcademicPunctuation, emphasizeSolutionLabels, alignRenderedSystems, PARALLEL_RENDER_MACROS } from './math-presentation.mjs';
+import { normalizeMathText, normalizeQuestionPresentation, normalizeAcademicPunctuation, emphasizeSolutionLabels, alignRenderedSystems, PARALLEL_RENDER_MACROS, questionStemPresentation } from './math-presentation.mjs';
 import {renderChoiceOptionsHtml,renderMathProse,adaptMathLayout,MATH_LAYOUT_CSS} from './math-layout.mjs';
 import {typesetMathNumbers} from './math-typography.mjs';
 import { radians, horizontalComparisons } from './angle-format.mjs';
@@ -32,7 +32,7 @@ function escapeHtml(value = '') {
 function stripDisplayedQuestionNumber(value, number) {
   const digits = String(number ?? '').match(/\d+/)?.[0];
   const text = digits ? String(value ?? '').replace(new RegExp(`^\\s*(?:第\\s*${digits}\\s*题|${digits}\\s*[.．、:：])(?=\\s|["'“”\\u3400-\\u9fff$\\\\(])\\s*`), '') : String(value ?? '');
-  return text.replace(/^\s*[（(]\s*本题\s*(?:满分|分值)\s*\d+(?:\.\d+)?\s*分\s*[）)]\s*/, '');
+  return text;
 }
 
 function displayMathText(value, question = false, choice = false, solution = false, styledContent = false, finalizeQuestion = true) {
@@ -262,6 +262,7 @@ function stemWithImages(question, stem) {
   const urls = question.assetUrls?.length ? question.assetUrls : question.assetUrl ? [question.assetUrl] : [];
   let assets = question.imageAssets || [];
   stem=stripDisplayedQuestionNumber(stem,question.questionNumber);
+  ({stem,images:assets}=questionStemPresentation(stem,urls.map((url,index)=>assets[index]||{}),splitLatexParagraphs));
   if(['单选题','选择题','多选题'].includes(question.questionType))({stem,images:assets}=choiceStemPresentation(stem,undefined,
     urls.map((url,index)=>assets[index]||{})));
   else stem=normalizeQuestionPresentation(stem);

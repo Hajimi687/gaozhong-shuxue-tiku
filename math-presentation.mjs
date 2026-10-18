@@ -219,18 +219,40 @@ export function normalizeAnswerBlanks(value) {
 // Finalize only the complete question. Rendered paragraphs and individual
 // options pass finalize:false, so a sentence mark is not added to each fragment.
 export function stripQuestionPreamble(value) {
-  const original=String(value??''),text=normalizeAcademicPunctuation(original).trim();
-  // A split fill-in from an old paper can inherit both the whole-paper banner
-  // and its parent section's instructions. Neither is a mathematical condition
-  // of this individual item. Require the complete known banner/instruction pair.
-  const paper=text.match(/^这份(?:试题|试卷)共[\d一二三四五六七八九十百]+道大题,\s*满分\s*\$?\d+\$?\s*分\.\s*/);
-  if(!paper)return original;
-  const section=text.slice(paper[0].length).match(/^(?:[一二三四五六七八九十]+[、.]\s*)?\(本题满分\s*\$?\d+\$?\s*分\)\s*本题共有\s*\$?(\d+)\$?\s*个小题,\s*每(?:一个)?小题满分\s*\$?\d+\$?\s*分[,.]\s*只要求直接填写结果\.\s*/);
-  if(!section||Number(section[1])<=1)return original;
-  const body=text.slice(paper[0].length+section[0].length),part=body.match(/^\(\d+\)\s*/);
-  // Complete multi-part questions retain their own instructions and all parts.
-  if(!part||[...body.matchAll(/(?:^|\n)\s*\(\d+\)\s*/g)].length!==1)return original;
-  return body.slice(part[0].length);
+  const original=String(value??''),num=String.raw`(?:\$\s*\d+(?:\.\d+)?\s*\$|\d+(?:\.\d+)?|[零一二三四五六七八九十百]+)`,end=String.raw`\s*[,.，。;；:：]?\s*`;
+  const atoms=[
+    new RegExp(String.raw`^(?:(?:第\s*\d+\s*题|\d+\s*[.．、]|[一二三四五六七八九十]+[、,.．])\s*)?(?:[（(]\s*)?本(?:大|小)?题\s*(?:满分|分值)\s*${num}\s*分\s*[）)]?${end}`),
+    new RegExp(String.raw`^本(?:大|小)?题\s*共(?:有)?\s*${num}\s*(?:个|道)?\s*小题${end}`),
+    new RegExp(String.raw`^第\s*[（(]?\s*${num}\s*[）)]?\s*(?:小题|问)\s*(?:满分|分值|为)?\s*${num}\s*分${end}`),
+    new RegExp(String.raw`^第\s*[（(]\s*${num}\s*[）)](?:\s*[,，、]\s*[（(]\s*${num}\s*[）)])+\s*小题\s*(?:满分|分值)?\s*各\s*${num}\s*分${end}`),
+    new RegExp(String.raw`^每(?:一个|个|一)?\s*(?:小题|题|空)\s*(?:满分|分值)?\s*(?:均为|各为|为|各)?\s*${num}\s*分${end}`),
+    /^(?:[一二三四五六七八九十]+\s*[、,.．]\s*)?(?:单项选择题|多项选择题|单选题|多选题|选择题|填空题|解答题|证明题)(?=\s*[:：（(\r\n]|\s*$)[\s:：]*/
+  ];
+  let text=original.trimStart(),changed=false;
+  const paper=new RegExp(String.raw`^(?:考生注意\s*[:：]\s*)?(?:这份(?:试题|试卷)|本试卷|本卷|全卷)\s*共(?:有)?\s*${num}\s*(?:道大题|道试题|道题|题|大题|小题)\s*[,，]\s*(?:满分|总分)\s*${num}\s*分\s*[.。]\s*`);
+  const banner=text.match(paper);
+  if(banner){const rest=text.slice(banner[0].length);if(!rest.trim()||atoms.some(rx=>rx.test(rest))||/^(?:[一二三四五六七八九十]+[、,.．]|\(\d+\))/.test(rest)){text=rest;changed=true;}}
+  for(let i=0;i<40;i++){
+    const match=atoms.map(rx=>text.match(rx)).find(Boolean);
+    if(match){text=text.slice(match[0].length).trimStart();changed=true;continue;}
+    if(changed){
+      const instruction=text.match(/^(?:只要求直接(?:填写|写出|填出)结果|解答应写出文字说明[、,，]证明过程或演算步骤)\s*[.。]\s*/)
+        ||text.match(new RegExp(String.raw`^每(?:一个|个)?(?:小题|题)(?:都)?给出[\s\S]{0,650}?一律得\s*${num}\s*分[.。]\s*`))
+        ||text.match(new RegExp(String.raw`^每(?:一个|个)?空格填对(?:得)?\s*${num}\s*分[,，]\s*否则一律得\s*${num}\s*分[.。]\s*`));
+      if(instruction){text=text.slice(instruction[0].length).trimStart();continue;}
+    }
+    break;
+  }
+  if(!changed)return original;
+  const part=text.match(/^[（(]\d+[）)]\s*/);
+  if(part&&[...text.replace(mathPattern,'').matchAll(/[（(]\d+[）)]\s*/g)].length===1)text=text.slice(part[0].length);
+  return text;
+}
+export function questionStemPresentation(stem,images,splitParagraphs) {
+  const source=String(stem??''),text=stripQuestionPreamble(source),figures=Array.isArray(images)?images:[];
+  if(text===source)return{stem:source,images:figures};
+  const removed=Math.max(0,splitParagraphs(source).length-splitParagraphs(text).length);
+  return{stem:text,images:figures.map(image=>Number.isInteger(image.afterParagraph)?{...image,afterParagraph:Math.max(0,image.afterParagraph-removed)}:image)};
 }
 export function normalizeQuestionPresentation(value,{finalize=true}={}) {
   let text=normalizeAcademicPunctuation(normalizeAnswerBlanks(stripQuestionPreamble(value))).trim();
