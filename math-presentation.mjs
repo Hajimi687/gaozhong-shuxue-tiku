@@ -218,8 +218,22 @@ export function normalizeAnswerBlanks(value) {
 }
 // Finalize only the complete question. Rendered paragraphs and individual
 // options pass finalize:false, so a sentence mark is not added to each fragment.
+export function stripQuestionPreamble(value) {
+  const original=String(value??''),text=normalizeAcademicPunctuation(original).trim();
+  // A split fill-in from an old paper can inherit both the whole-paper banner
+  // and its parent section's instructions. Neither is a mathematical condition
+  // of this individual item. Require the complete known banner/instruction pair.
+  const paper=text.match(/^这份(?:试题|试卷)共[\d一二三四五六七八九十百]+道大题,\s*满分\s*\$?\d+\$?\s*分\.\s*/);
+  if(!paper)return original;
+  const section=text.slice(paper[0].length).match(/^(?:[一二三四五六七八九十]+[、.]\s*)?\(本题满分\s*\$?\d+\$?\s*分\)\s*本题共有\s*\$?(\d+)\$?\s*个小题,\s*每(?:一个)?小题满分\s*\$?\d+\$?\s*分[,.]\s*只要求直接填写结果\.\s*/);
+  if(!section||Number(section[1])<=1)return original;
+  const body=text.slice(paper[0].length+section[0].length),part=body.match(/^\(\d+\)\s*/);
+  // Complete multi-part questions retain their own instructions and all parts.
+  if(!part||[...body.matchAll(/(?:^|\n)\s*\(\d+\)\s*/g)].length!==1)return original;
+  return body.slice(part[0].length);
+}
 export function normalizeQuestionPresentation(value,{finalize=true}={}) {
-  let text=normalizeAcademicPunctuation(normalizeAnswerBlanks(value)).trim();
+  let text=normalizeAcademicPunctuation(normalizeAnswerBlanks(stripQuestionPreamble(value))).trim();
   const spans=[...text.matchAll(mathPattern)],tail=text.search(/;\s*$/);
   if(tail>=0&&!spans.some(match=>tail>=match.index&&tail<match.index+match[0].length))text=text.slice(0,tail)+'.';
   if(!finalize||!text||/[.!?]["']*$/.test(text))return text;
