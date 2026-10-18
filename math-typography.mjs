@@ -2,6 +2,8 @@
 // do not pass through this formatter. Archived source fields remain unchanged.
 const protectedPattern=/(?<!\\)\$\$[\s\S]*?(?<!\\)\$\$|(?<![\\$])\$(?!\$)[^$]*?(?<!\\)\$(?!\$)|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\\begin\{tikzpicture\}[\s\S]*?\\end\{tikzpicture\}|(?:https?:\/\/|www\.)[^\s]+|(?:^|\n)[ \t]*[（(]\d+[）)]|(?<=[\]】};；])[ \t]*[（(]\d+[）)]|(?:^|\n)[ \t]*\d+[.．、](?!\d)(?=[ \t]|[\u3400-\u9fff])|第\s*(?:\d+|[（(]\d+[）)])\s*(?:小题|题|问)|解法\s*\d+|满分\s*\d+(?:\.\d+)?\s*分|本题共有\s*\d+\s*个小题|同\s*[（(]\d+[）)]|[（(]\d+[）)](?=\s*应当作为特例)/g;
 const numberPattern=/(?:(?<![A-Za-z\d_\\.])|(?<=[\u3400-\u9fff]\.))[+\-−]?\d+(?:\.\d+)?(?:\s*\/\s*[+\-−]?\d+(?:\.\d+)?)?(?:[%％])?(?!(?:[A-Za-z\d_]|\.\d))/g;
+const tupleNumber=String.raw`[+\-−－]?\d+(?:\.\d+)?(?:\s*\/\s*[+\-−－]?\d+(?:\.\d+)?)?`;
+const tuplePattern=new RegExp(String.raw`[([]\s*${tupleNumber}(?:\s*[,，]\s*${tupleNumber})+\s*[)\]]`,'g');
 
 function groupEnd(text,start){
  let depth=1;
@@ -40,11 +42,24 @@ function numbersInProse(text){
  return result+wrapNumbers(text.slice(end));
 }
 
-function wrapNumbers(text){
+function wrapSingleNumbers(text){
  return text.replace(numberPattern,number=>{
   const fraction=number.match(/^([+\-−]?\d+(?:\.\d+)?)\s*\/\s*([+\-−]?\d+(?:\.\d+)?)$/);
   return fraction?`$\\dfrac{${fraction[1]}}{${fraction[2]}}$`:`$${number.replace(/[％%]/g,'\\%').replace(/−/g,'-')}$`;
  });
+}
+
+function wrapNumbers(text){
+ // A numerical coordinate or interval is a single mathematical expression.
+ // Keep its signs and separators inside math mode, including OCR's wide minus.
+ let result='',end=0;
+ for(const tuple of text.matchAll(tuplePattern)){
+  const formula=tuple[0].replace(/[−－]/g,'-').replace(/，/g,',')
+   .replace(/([+\-]?\d+(?:\.\d+)?)\s*\/\s*([+\-]?\d+(?:\.\d+)?)/g,'\\dfrac{$1}{$2}');
+  result+=wrapSingleNumbers(text.slice(end,tuple.index))+`$${formula}$`;
+  end=tuple.index+tuple[0].length;
+ }
+ return result+wrapSingleNumbers(text.slice(end));
 }
 
 export function typesetMathNumbers(value){
