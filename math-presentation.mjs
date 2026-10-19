@@ -181,6 +181,17 @@ export function normalizeNumberSetFormula(value,context=numberSetFontContext(val
 
 export const NUMBER_SET_FONT_RULE=String.raw`自然数集、整数集、有理数集、实数集、复数集统一使用黑板粗体数集符号 \mathbb{N}、\mathbb{Z}、\mathbb{Q}、\mathbb{R}、\mathbb{C}，不使用普通斜体、正体或实心粗体代替。星号、正负号及上标保持原含义。自行定义的集合、矩阵、点或其他同名字母保持区别，不得因数集排版规则改变数学含义。数学公式中的逗号、括号、关系符号与条件分隔使用对应的规范TeX写法，不以文字引号或排版空白代替数学符号。`;
 
+// Text inside a fraction is not necessarily a unit: e.g. profit/price is a
+// mathematical ratio. Only explicit unit names retain the source's slash form.
+export function normalizeTextRatios(value) {
+  const unit=String.raw`\\(?:text|mathrm)\{[^{}]+\}`;
+  const denominator=`${unit}(?:\\s*\\\\cdot\\s*${unit})*`;
+  const known=/^(?:元|米|厘米|毫米|千米|秒|分钟|小时|千克|克|升|吨|度|m|cm|mm|km|s|h|min|kg|g|L|ml|mL|kW|W|kWh|J|kJ|N|Pa|kPa|MPa|Hz|K|A|V|C|mol|Ω|℃)$/;
+  const isUnit=token=>{const names=[...token.matchAll(/\\(?:text|mathrm)\{([^{}]+)\}/g)];return names.length>0&&names.every(m=>known.test(m[1].trim()));};
+  let text=String(value??'').replace(new RegExp(`\\\\(?:dfrac|frac|tfrac)\\{(${unit})\\}\\{(${denominator})\\}`,'g'),(whole,n,d)=>isUnit(n)&&isUnit(d)?`${n}/(${d})`:whole);
+  return text.replace(new RegExp(`(${unit})\\s*/\\s*\\(\\s*(${denominator})\\s*\\)`,'g'),(whole,n,d)=>isUnit(n)&&isUnit(d)?whole:`\\dfrac{${n}}{${d}}`);
+}
+
 export const ANSWER_BLANK_WIDTH_EM = 3;
 export const ANSWER_BLANK_TEX = String.raw`\underline{\hspace{3em}}`;
 export const CHOICE_BLANK_TEXT = '(　)';
@@ -250,12 +261,18 @@ export function stripQuestionPreamble(value) {
 }
 export function questionStemPresentation(stem,images,splitParagraphs) {
   const source=String(stem??''),text=stripQuestionPreamble(source),figures=Array.isArray(images)?images:[];
-  if(text===source)return{stem:source,images:figures};
   const removed=Math.max(0,splitParagraphs(source).length-splitParagraphs(text).length);
-  return{stem:text,images:figures.map(image=>Number.isInteger(image.afterParagraph)?{...image,afterParagraph:Math.max(0,image.afterParagraph-removed)}:image)};
+  return{stem:stripQuestionAnswerSpace(text),images:removed?figures.map(image=>Number.isInteger(image.afterParagraph)?{...image,afterParagraph:Math.max(0,image.afterParagraph-removed)}:image):figures};
+}
+export function stripQuestionAnswerSpace(value) {
+  const text=String(value??''),tail=text.match(/(?:^|\n)\s*(?:\\textbf\s*\{\s*\[解\]\s*\}|\[解\]|【解】)\s*((?:[（(][1-9]\d*[）)]\s*[.;。；]?\s*)+)$/u);
+  if(!tail)return text;
+  const prefix=text.slice(0,tail.index).trimEnd(),numbers=[...tail[1].matchAll(/[（(]([1-9]\d*)[）)]/gu)].map(m=>m[1]);
+  if(!numbers.every(n=>new RegExp(`[（(]${n}[）)]\\s*[^\\s(（]`).test(prefix)))return text;
+  return prefix;
 }
 export function normalizeQuestionPresentation(value,{finalize=true}={}) {
-  let text=normalizeAcademicPunctuation(normalizeAnswerBlanks(stripQuestionPreamble(value))).trim();
+  let text=normalizeAcademicPunctuation(normalizeAnswerBlanks(stripQuestionAnswerSpace(stripQuestionPreamble(value)))).trim();
   const spans=[...text.matchAll(mathPattern)],tail=text.search(/;\s*$/);
   if(tail>=0&&!spans.some(match=>tail>=match.index&&tail<match.index+match[0].length))text=text.slice(0,tail)+'.';
   if(!finalize||!text||/[.!?]["']*$/.test(text))return text;
@@ -286,6 +303,7 @@ export function isEquationSystem(formula) {
   return /\\begin\{cases\}|\\left\s*\\\{\s*\\begin\{(?:array|aligned|gathered)\}/.test(formula);
 }
 function compactScriptFractions(text) {
+  text=text.replace(/([\^_]\s*)\\(?:dfrac|tfrac)(?![A-Za-z])/g,'$1\\frac');
   let output = '', end = 0;
   for (let i = 0; i < text.length; i++) {
     if (text[i] === '\\') { i += (text.slice(i).match(/^\\(?:[A-Za-z]+|.)/)?.[0].length || 1) - 1; continue; }
@@ -312,7 +330,7 @@ export function unboxSolutionText(value) {
 }
 export function normalizeFormula(value, numberSetContext,{punctuation=true}={}) {
   const input=punctuation?normalizeAcademicPunctuation(value,{math:true}):value;
-  let text = compactScriptFractions(normalizeNumberSetFormula(normalizeAnswerBlankFormula(input), numberSetContext))
+  let text = compactScriptFractions(normalizeNumberSetFormula(normalizeAnswerBlankFormula(normalizeTextRatios(input)), numberSetContext).replace(/\\frac(?![A-Za-z])/g,'\\dfrac'))
     .replace(/\\(?:varnothing|nothing)(?![A-Za-z])/g, '\\emptyset')
     .replace(/\\(?:mathit|mathsl)\s*\{\s*(\\(?:infty|emptyset)|[∞∅])\s*\}/g, '$1')
     .replace(/\\left\s*\|(?=[^|])/g, '\\left\\lvert ')
@@ -367,7 +385,8 @@ export function normalizeFormula(value, numberSetContext,{punctuation=true}={}) 
   return text;
 }
 export function normalizeMathText(value, context=numberSetFontContext(value),{punctuation=true}={}) {
-  const input=punctuation?normalizeAcademicPunctuation(value):value;
+  const labels=String(value??'').replace(/((?:选项|故选|应选)\s*\$\s*)\\(?:mathbb|mathrm|mathbf|mathit)\s*\{\s*([A-D])\s*\}(\s*\$)/g,'$1$2$3');
+  const input=punctuation?normalizeAcademicPunctuation(labels):labels;
   return normalizeAnswerBlanks(input).replace(mathPattern, token => {
     const width = token.startsWith('$$') || token.startsWith('\\') ? 2 : 1;
     return token.slice(0, width) + normalizeFormula(token.slice(width, -width),context,{punctuation}) + token.slice(-width);

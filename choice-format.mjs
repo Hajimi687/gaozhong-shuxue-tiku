@@ -147,6 +147,13 @@ export function choiceStemPresentation(value, formatter=formatChoiceLabels, imag
   const original=splitLatexParagraphs(source);
   const rawMarkers=choiceMarkers(source), markers=choiceMarkers(stem);
   const valid=splitChoiceOptions(source)&&splitChoiceOptions(stem);
+  // Earlier intake normalized four separately pictured options into one text
+  // paragraph, retaining their five original paragraph boundaries in assets.
+  // Restore those explicit A/B/C/D boundaries only for this unambiguous shape.
+  if(valid&&original.length===2&&images.length===4&&images.every((image,index)=>image.afterParagraph===index+2)){
+    const parts=splitChoiceOptions(stem);
+    return {stem:parts.intro+'\n\n'+parts.options.map(option=>`(${option.label}) ${option.content}`).join('\n\n'),images:images.map(image=>({...image}))};
+  }
   const boundaries=[];
   let cursor=0;
   for(const paragraph of original){
