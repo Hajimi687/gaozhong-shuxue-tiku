@@ -187,7 +187,7 @@ export function normalizeTextRatios(value) {
   const unit=String.raw`\\(?:text|mathrm)\{[^{}]+\}`;
   const denominator=`${unit}(?:\\s*\\\\cdot\\s*${unit})*`;
   const known=/^(?:元|米|厘米|毫米|千米|秒|分钟|小时|千克|克|升|吨|度|m|cm|mm|km|s|h|min|kg|g|L|ml|mL|kW|W|kWh|J|kJ|N|Pa|kPa|MPa|Hz|K|A|V|C|mol|Ω|℃)$/;
-  const isUnit=token=>{const names=[...token.matchAll(/\\(?:text|mathrm)\{([^{}]+)\}/g)];return names.length>0&&names.every(m=>known.test(m[1].trim()));};
+  const isUnit=token=>{const names=[...token.matchAll(/\\(?:text|mathrm)\{([^{}]+)\}/g)];return names.length>0&&names.every(m=>{const factors=m[1].trim().split(/\\cdot|·|\s+/).filter(Boolean);return factors.length>0&&factors.every(f=>known.test(f));});};
   let text=String(value??'').replace(new RegExp(`\\\\(?:dfrac|frac|tfrac)\\{(${unit})\\}\\{(${denominator})\\}`,'g'),(whole,n,d)=>isUnit(n)&&isUnit(d)?`${n}/(${d})`:whole);
   return text.replace(new RegExp(`(${unit})\\s*/\\s*\\(\\s*(${denominator})\\s*\\)`,'g'),(whole,n,d)=>isUnit(n)&&isUnit(d)?whole:`\\dfrac{${n}}{${d}}`);
 }
